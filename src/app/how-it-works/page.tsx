@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Script from 'next/script';
 import { Upload, Sliders, Eye, Download, Image, Shapes, Palette, Smartphone, ArrowRight, Zap, Shield } from 'lucide-react';
 import { PageLayout } from '@/components/layout/page-layout';
 
@@ -8,11 +9,11 @@ export const metadata: Metadata = {
   description: 'Learn how to generate app icons for Android, iOS, Web & Desktop with CloudIcon Studio. Upload, customize, preview, and export in under a minute — 100% in your browser.',
   keywords: ['how to make app icons', 'app icon generator guide', 'how app icon generator works', 'create app icons', 'icon generator tutorial', 'browser-based icon tool', 'app icon creation guide', 'generate app icons online'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.studio/how-it-works' },
+  alternates: { canonical: 'https://cloudicon.typely.in/how-it-works' },
   openGraph: {
     title: 'How to Make App Icons — Step-by-Step Guide',
     description: 'Upload once, generate production-ready icons for Android, iOS, Web, and Desktop. Complete guide with step-by-step instructions.',
-    url: 'https://cloudicon.studio/how-it-works',
+    url: 'https://cloudicon.typely.in/how-it-works',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',
@@ -77,9 +78,32 @@ const highlights = [
   },
 ];
 
+const howItWorksSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'HowTo',
+  '@id': 'https://cloudicon.typely.in/how-it-works#howto',
+  name: 'How to Make App Icons with CloudIcon Studio',
+  description: 'Learn how to generate app icons for Android, iOS, Web & Desktop. Upload, customize, preview, and export in under a minute — 100% in your browser.',
+  image: 'https://cloudicon.typely.in/og-image.png',
+  estimatedTime: 'PT1M',
+  step: [
+    { '@type': 'HowToStep', position: 1, name: 'Upload Your Image',
+      text: 'Drop your artwork into the browser. CloudIcon Studio supports PNG, JPG, SVG, and WEBP formats. No account required, no file size limit.' },
+    { '@type': 'HowToStep', position: 2, name: 'Customize Every Detail',
+      text: 'Use the left panel to adjust rotation, add background color or gradient, control padding, crop unwanted edges, and choose your icon shape.' },
+    { '@type': 'HowToStep', position: 3, name: 'Preview on Real Devices',
+      text: 'See your icon on realistic device mockups for Android, iOS, Web, and Desktop. Toggle between platforms, zoom in, and check light/dark mode.' },
+    { '@type': 'HowToStep', position: 4, name: 'Export for Every Platform',
+      text: 'Download a complete ZIP archive with every icon size and format for Android, iOS, Web, and Desktop. All generated in your browser.' },
+  ],
+};
+
 export default function HowItWorksPage() {
   return (
     <PageLayout>
+    <Script id="how-it-works-schema" type="application/ld+json" strategy="afterInteractive">
+      {JSON.stringify(howItWorksSchema)}
+    </Script>
     <main className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-8">
         <span aria-hidden="true">&larr;</span> Back to Home

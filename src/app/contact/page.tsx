@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   description: 'Contact the CloudIcon Studio team. Report bugs, request features, or give feedback about our free app icon generator for Android, iOS, Web & Desktop.',
   keywords: ['CloudIcon Studio contact', 'app icon generator support', 'icon generator help', 'feedback', 'icon tool support', 'bug report icon generator'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.studio/contact' },
+  alternates: { canonical: 'https://cloudicon.typely.in/contact' },
   openGraph: {
     title: 'Contact CloudIcon Studio — App Icon Generator Support',
     description: 'Need help with our free app icon generator? Contact us directly for bug reports, feature requests, and feedback.',
-    url: 'https://cloudicon.studio/contact',
+    url: 'https://cloudicon.typely.in/contact',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',

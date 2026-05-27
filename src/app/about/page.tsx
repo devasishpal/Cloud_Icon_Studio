@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   description: 'Learn about CloudIcon Studio — the 100% client-side free app icon generator for Android, iOS, Web & Desktop. No uploads, no servers, no accounts. Privacy-first icon design tool.',
   keywords: ['CloudIcon Studio about', 'free app icon generator', 'client-side icon tool', 'privacy-first design tool', 'icon maker app', 'online icon creator'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.studio/about' },
+  alternates: { canonical: 'https://cloudicon.typely.in/about' },
   openGraph: {
     title: 'About CloudIcon Studio — Free App Icon Generator',
     description: 'Learn about CloudIcon Studio — the 100% client-side free app icon generator. No uploads, no servers, instant export for Android, iOS, Web & Desktop.',
-    url: 'https://cloudicon.studio/about',
+    url: 'https://cloudicon.typely.in/about',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',

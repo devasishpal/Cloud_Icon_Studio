@@ -4,7 +4,7 @@
 
 CloudIcon Studio is a free, privacy-first Progressive Web App that lets you upload a single image, edit it visually, and download a complete set of platform-optimized icons. No sign-ups, no servers, no data uploads. Everything runs client-side.
 
-**[Launch Editor](https://cloudicon.studio/editor)** &nbsp;·&nbsp; **[Documentation](https://cloudicon.studio/docs)** &nbsp;·&nbsp; **[Report Bug](https://github.com/devasishpal/Cloud_Icon_Studio/issues)**
+**[Launch Editor](https://cloudicon.typely.in/editor)** &nbsp;·&nbsp; **[Documentation](https://cloudicon.typely.in/docs)** &nbsp;·&nbsp; **[Report Bug](https://github.com/devasishpal/Cloud_Icon_Studio/issues)**
 
 ---
 
@@ -515,7 +515,7 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ## Support
 
-- **Website**: [cloudicon.studio](https://cloudicon.studio)
+- **Website**: [cloudicon.typely.in](https://cloudicon.typely.in)
 - **Email**: support@typely.in
 - **Issues**: [GitHub Issues](https://github.com/devasishpal/Cloud_Icon_Studio/issues)
 

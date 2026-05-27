@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     template: "%s | CloudIcon Studio",
   },
   description:
-    "Free app icon generator. Upload once, instantly generate launcher icons, favicons, mipmaps, adaptive icons, and complete export packs for Android, iOS & Web. 100% client-side — no uploads, no servers, no accounts.",
+    "Free app icon editor & generator. Upload once, instantly generate launcher icons, favicons, mipmaps, adaptive icons, and complete export packs for Android, iOS & Web. 100% client-side — no uploads, no servers, no accounts. Edit icons online with real-time preview, crop, rotate, background, and shape tools.",
   keywords: [
     "app icon generator",
     "android icon generator",
@@ -46,16 +46,32 @@ export const metadata: Metadata = {
     "app icon creator free",
     "generate app icons",
     "icon design tool",
+    "icon editing tool",
+    "edit icons online",
+    "free icon editor",
+    "icon resize tool",
+    "app icon resizer",
+    "icon background changer",
+    "icon crop tool",
+    "icon shape editor",
+    "icon padding tool",
+    "android icon editor",
+    "ios icon editor",
+    "web icon editor",
+    "icon preview tool",
+    "icon export tool",
+    "icon design online",
+    "icon maker free",
   ],
   authors: [{ name: "CloudIcon Studio" }],
   creator: "CloudIcon Studio",
   publisher: "CloudIcon Studio",
-  metadataBase: new URL("https://cloudicon.studio"),
+  metadataBase: new URL("https://cloudicon.typely.in"),
   openGraph: {
     title: "CloudIcon Studio — Generate Perfect App Icons in Seconds",
     description:
       "Upload your icon once. Instantly generate launcher icons, favicons, mipmaps, adaptive icons for Android, iOS & Web. Free, no backend, runs in your browser.",
-    url: "https://cloudicon.studio",
+    url: "https://cloudicon.typely.in",
     siteName: "CloudIcon Studio",
     type: "website",
     locale: "en_US",
@@ -160,6 +176,18 @@ export default function RootLayout({
             `,
           }}
         />
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-064B1NNVF3"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-064B1NNVF3');
+          `}
+        </Script>
       </body>
     </html>
   );

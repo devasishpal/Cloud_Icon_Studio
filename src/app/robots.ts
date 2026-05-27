@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: { userAgent: '*', allow: '/', disallow: '/editor' },
-    sitemap: 'https://cloudicon.studio/sitemap.xml',
+    rules: { userAgent: '*', allow: '/' },
+    sitemap: 'https://cloudicon.typely.in/sitemap.xml',
   };
 }

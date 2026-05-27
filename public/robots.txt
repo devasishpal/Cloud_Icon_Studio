@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://cloudicon.studio/sitemap.xml
+Sitemap: https://cloudicon.typely.in/sitemap.xml

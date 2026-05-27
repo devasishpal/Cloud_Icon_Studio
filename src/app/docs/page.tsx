@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Script from 'next/script';
 import { BookOpen, Upload, Sliders, Eye, Download, KeyRound, Grid, Undo2, Command, ArrowRight } from 'lucide-react';
 import { PageLayout } from '@/components/layout/page-layout';
 
@@ -8,11 +9,11 @@ export const metadata: Metadata = {
   description: 'Complete documentation for CloudIcon Studio. Learn how to generate Android adaptive icons, iOS app icons, Web favicons & Desktop icons. Includes keyboard shortcuts and pro tips.',
   keywords: ['app icon generator documentation', 'icon generator guide', 'how to make app icons', 'app icon tutorial', 'icon design documentation', 'android icon documentation', 'ios icon guide', 'favicon guide'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.studio/docs' },
+  alternates: { canonical: 'https://cloudicon.typely.in/docs' },
   openGraph: {
     title: 'App Icon Generator Documentation — Step-by-Step Guide',
     description: 'Complete guide to using CloudIcon Studio: upload, customize, preview on device mockups, and export icon packs for every platform.',
-    url: 'https://cloudicon.studio/docs',
+    url: 'https://cloudicon.typely.in/docs',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',
@@ -59,9 +60,28 @@ const shortcuts = [
   { keys: 'Ctrl+Shift+P', action: 'Open command palette' },
 ];
 
+const docsSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'TechArticle',
+  '@id': 'https://cloudicon.typely.in/docs#article',
+  headline: 'App Icon Generator Documentation — Step-by-Step Guide',
+  description: 'Complete documentation for CloudIcon Studio. Learn how to generate Android adaptive icons, iOS app icons, Web favicons & Desktop icons.',
+  author: { '@id': 'https://cloudicon.typely.in/#organization' },
+  publisher: { '@id': 'https://cloudicon.typely.in/#organization' },
+  image: 'https://cloudicon.typely.in/og-image.png',
+  datePublished: '2026-05-16',
+  dateModified: new Date().toISOString().split('T')[0],
+  inLanguage: 'en-US',
+  proficiencyLevel: 'Beginner',
+  timeRequired: 'PT1M',
+};
+
 export default function DocsPage() {
   return (
     <PageLayout>
+    <Script id="docs-schema" type="application/ld+json" strategy="afterInteractive">
+      {JSON.stringify(docsSchema)}
+    </Script>
     <main className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-8">
         <span aria-hidden="true">&larr;</span> Back to Home

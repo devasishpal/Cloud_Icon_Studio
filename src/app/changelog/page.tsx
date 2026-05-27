@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   description: 'Release history and product updates for CloudIcon Studio — the free, client-side app icon generator for Android, iOS, Web & Desktop.',
   keywords: ['CloudIcon Studio changelog', 'release notes', 'app icon generator updates', 'version history', 'product changelog', 'icon tool updates'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.studio/changelog' },
+  alternates: { canonical: 'https://cloudicon.typely.in/changelog' },
   openGraph: {
     title: 'Changelog — App Icon Generator Release Notes',
     description: 'Release history and product updates for CloudIcon Studio — the free app icon generator.',
-    url: 'https://cloudicon.studio/changelog',
+    url: 'https://cloudicon.typely.in/changelog',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',
