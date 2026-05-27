@@ -1,0 +1,166 @@
+import type { Metadata } from "next";
+import { Outfit, Geist_Mono } from "next/font/google";
+import Script from "next/script";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+import { Navbar } from "@/components/layout/navbar";
+import { JsonLd } from "@/components/json-ld";
+import { CookieConsent } from "@/components/cookie-consent";
+import "./globals.css";
+
+const outfit = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: {
+    default: "CloudIcon Studio — Free App Icon Generator for Android, iOS & Web",
+    template: "%s | CloudIcon Studio",
+  },
+  description:
+    "Free app icon generator. Upload once, instantly generate launcher icons, favicons, mipmaps, adaptive icons, and complete export packs for Android, iOS & Web. 100% client-side — no uploads, no servers, no accounts.",
+  keywords: [
+    "app icon generator",
+    "android icon generator",
+    "ios icon generator",
+    "favicon generator",
+    "adaptive icon generator",
+    "icon pack generator",
+    "mipmap generator",
+    "app icon maker",
+    "free icon generator",
+    "icon maker online",
+    "app icon designer",
+    "notification icon generator",
+    "icon creator",
+    "create app icons online",
+    "mobile app icon generator",
+    "icon editor",
+    "app icon creator free",
+    "generate app icons",
+    "icon design tool",
+  ],
+  authors: [{ name: "CloudIcon Studio" }],
+  creator: "CloudIcon Studio",
+  publisher: "CloudIcon Studio",
+  metadataBase: new URL("https://cloudicon.studio"),
+  openGraph: {
+    title: "CloudIcon Studio — Generate Perfect App Icons in Seconds",
+    description:
+      "Upload your icon once. Instantly generate launcher icons, favicons, mipmaps, adaptive icons for Android, iOS & Web. Free, no backend, runs in your browser.",
+    url: "https://cloudicon.studio",
+    siteName: "CloudIcon Studio",
+    type: "website",
+    locale: "en_US",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "CloudIcon Studio" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CloudIcon Studio — Free App Icon Generator",
+    description:
+      "Generate perfect app icons for Android, iOS & Web. Free, fast, and runs entirely in your browser.",
+    images: ["/og-image.png"],
+    creator: "@cloudicon",
+    site: "@cloudicon",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
+  },
+  referrer: "origin-when-cross-origin",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [{ url: "/icon.png", sizes: "any", type: "image/png" }],
+    other: [{ rel: "mask-icon", url: "/icon.png", color: "#215ee9" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "CloudIcon",
+    statusBarStyle: "black-translucent",
+  },
+  other: {
+    "msapplication-TileColor": "#215ee9",
+    "format-detection": "telephone=no, email=no, address=no",
+  },
+  category: "design",
+  classification: "Design Tool",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html
+      lang="en"
+      className={`${outfit.variable} ${geistMono.variable} antialiased dark`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                try {
+                  var t = localStorage.getItem('theme');
+                  var r = document.documentElement;
+                  if (t === 'light' || (!t && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+                    r.classList.remove('dark');
+                    r.classList.add('light');
+                    r.style.colorScheme = 'light';
+                  } else {
+                    r.classList.add('dark');
+                    r.style.colorScheme = 'dark';
+                  }
+                  r.classList.add('no-transitions');
+                  requestAnimationFrame(function(){ r.classList.remove('no-transitions'); });
+                } catch(e){}
+              })();
+            `,
+          }} />
+        <link rel="icon" href="/icon.png" type="image/png" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#215ee9" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="application-name" content="CloudIcon" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
+      <body className="min-h-dvh flex flex-col bg-background text-foreground overflow-x-hidden">
+        <JsonLd />
+        <ThemeProvider>
+          <Navbar />
+          {children}
+          <CookieConsent />
+        </ThemeProvider>
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js').catch(() => {});
+                });
+              }
+            `,
+          }}
+        />
+      </body>
+    </html>
+  );
+}

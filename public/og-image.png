@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#09090B"/>
+      <stop offset="100%" stop-color="#1a1a2e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g transform="translate(600,280)" fill="none" stroke="#8B5CF6" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="-80" y="-80" width="160" height="160" rx="32" stroke-width="8"/>
+    <path d="M-40,-40 L40,40 M40,-40 L-40,40" stroke-width="6"/>
+    <circle cx="0" cy="0" r="12" fill="#8B5CF6" stroke="none"/>
+  </g>
+  <text x="600" y="400" text-anchor="middle" fill="white" font-family="system-ui,sans-serif" font-size="52" font-weight="bold">CloudIcon Studio</text>
+  <text x="600" y="445" text-anchor="middle" fill="#A1A1AA" font-family="system-ui,sans-serif" font-size="22">Generate Perfect App Icons for Android, iOS & Web</text>
+</svg>
