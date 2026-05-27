@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Toolbar } from '@/components/editor/toolbar';
@@ -9,12 +9,12 @@ import { WorkspaceLayout } from '@/components/workspace-layout';
 import { RightPanel } from '@/components/right-panel';
 import { ExportModal } from '@/components/export/export-modal';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { MobileBottomBar } from '@/components/mobile-bottom-bar';
 import { useEditorStore, rehydrateStore } from '@/store/useEditorStore';
 import { useUndoStore } from '@/store/undo-store';
 import { useKeyboardShortcuts } from '@/components/keyboard-shortcuts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBar } from '@/components/status-bar';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 const CommandPalette = dynamic(() => import('@/components/command-palette').then((m) => ({ default: m.CommandPalette })), { ssr: false });
 const InstallPwaPrompt = dynamic(() => import('@/components/install-pwa-prompt').then((m) => ({ default: m.InstallPwaPrompt })), { ssr: false });
@@ -37,6 +37,8 @@ export default function EditorPage() {
   const [isMounted, setIsMounted] = useState(false);
   const hasImage = useEditorStore((s) => s.image.dataUrl !== null);
   const isReady = useRef(false);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const [mobileToolOpen, setMobileToolOpen] = useState(false);
 
   useKeyboardShortcuts();
 
@@ -79,6 +81,14 @@ export default function EditorPage() {
     return unsub;
   }, []);
 
+  const handleMobilePreview = useCallback(() => {
+    setMobilePreviewOpen(true);
+  }, []);
+
+  const handleMobileTool = useCallback(() => {
+    setMobileToolOpen(true);
+  }, []);
+
   const pageContent = !isMounted ? (
     <EditorSkeleton />
   ) : !hasImage ? (
@@ -87,19 +97,43 @@ export default function EditorPage() {
     </div>
   ) : (
     <ErrorBoundary>
-      <div className="flex flex-col overflow-hidden h-full">
+      <div className="flex flex-1 flex-col overflow-hidden">
         <OfflineBanner />
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          <Toolbar />
-          <ToolCard />
+          <Toolbar
+            onMobilePreview={handleMobilePreview}
+            onMobileTool={handleMobileTool}
+          />
+          <div className="hidden md:flex">
+            <ToolCard />
+          </div>
           <WorkspaceLayout />
           <RightPanel />
         </div>
         <StatusBar />
-        <MobileBottomBar />
         <ExportModal />
         <CommandPalette />
         <InstallPwaPrompt />
+
+        <Sheet open={mobileToolOpen} onOpenChange={setMobileToolOpen}>
+          <SheetContent
+            side="left"
+            className="w-72 p-0 md:hidden [&>[data-slot=sheet-close]]:top-3 [&>[data-slot=sheet-close]]:right-3"
+            showCloseButton={true}
+          >
+            <ToolCard className="flex-1 flex flex-col overflow-hidden w-auto border-r-0" />
+          </SheetContent>
+        </Sheet>
+
+        <Sheet open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
+          <SheetContent
+            side="right"
+            className="w-80 p-0 sm:max-w-sm [&>[data-slot=sheet-close]]:top-3 [&>[data-slot=sheet-close]]:right-3"
+            showCloseButton={true}
+          >
+            <RightPanel className="flex flex-col overflow-hidden size-full" />
+          </SheetContent>
+        </Sheet>
       </div>
     </ErrorBoundary>
   );

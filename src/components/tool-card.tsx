@@ -109,7 +109,11 @@ const toolContent: Record<string, React.ReactNode> = {
   'safe-area': <SafeAreaOverlay />,
 };
 
-export function ToolCard() {
+interface ToolCardProps {
+  className?: string;
+}
+
+export function ToolCard({ className }: ToolCardProps) {
   const activeTool = useEditorStore((s) => s.activeTool);
   const image = useEditorStore((s) => s.image);
 
@@ -120,7 +124,7 @@ export function ToolCard() {
   const content = toolContent[activeTool];
 
   return (
-    <div className="w-56 border-r border-border/40 bg-background/95 flex-shrink-0 flex flex-col overflow-hidden">
+    <div className={className ?? 'w-56 border-r border-border/40 bg-background/95 flex-shrink-0 flex flex-col overflow-hidden'}>
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/30 bg-muted/5 shrink-0">
         {Icon && <Icon className="size-3.5 text-muted-foreground/60" />}
         <span className="text-xs font-medium text-muted-foreground">{meta?.label}</span>

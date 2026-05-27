@@ -17,7 +17,11 @@ const previewTabs = [
   { id: 'desktop' as const, label: 'Desktop', icon: Monitor },
 ];
 
-export function RightPanel() {
+interface RightPanelProps {
+  className?: string;
+}
+
+export function RightPanel({ className }: RightPanelProps) {
   const image = useEditorStore((s) => s.image);
   const previewTab = useEditorStore((s) => s.previewTab);
   const setPreviewTab = useEditorStore((s) => s.setPreviewTab);
@@ -25,7 +29,7 @@ export function RightPanel() {
   if (!image.dataUrl) return null;
 
   return (
-    <div className="border-l border-border/40 bg-background/95 hidden lg:flex lg:w-64 xl:w-80 flex-col overflow-hidden">
+    <div className={className ?? 'border-l border-border/40 bg-background/95 hidden lg:flex lg:w-64 xl:w-80 flex-col overflow-hidden'}>
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/30 bg-muted/5 shrink-0">
         <Eye className="size-3 text-muted-foreground/60" />
         <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">Preview</span>
