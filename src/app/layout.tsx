@@ -19,100 +19,109 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "CloudIcon Studio — Free App Icon Generator for Android, iOS & Web",
-    template: "%s | CloudIcon Studio",
-  },
-  description:
-    "Free app icon editor & generator. Upload once, instantly generate launcher icons, favicons, mipmaps, adaptive icons, and complete export packs for Android, iOS & Web. 100% client-side — no uploads, no servers, no accounts. Edit icons online with real-time preview, crop, rotate, background, and shape tools.",
-  keywords: [
-    "app icon generator",
-    "android icon generator",
-    "ios icon generator",
-    "favicon generator",
-    "adaptive icon generator",
-    "icon pack generator",
-    "mipmap generator",
-    "app icon maker",
-    "free icon generator",
-    "icon maker online",
-    "app icon designer",
-    "notification icon generator",
-    "icon creator",
-    "create app icons online",
-    "mobile app icon generator",
-    "icon editor",
-    "app icon creator free",
-    "generate app icons",
-    "icon design tool",
-    "icon editing tool",
-    "edit icons online",
-    "free icon editor",
-    "icon resize tool",
-    "app icon resizer",
-    "icon background changer",
-    "icon crop tool",
-    "icon shape editor",
-    "icon padding tool",
-    "android icon editor",
-    "ios icon editor",
-    "web icon editor",
-    "icon preview tool",
-    "icon export tool",
-    "icon design online",
-    "icon maker free",
-  ],
-  authors: [{ name: "CloudIcon Studio" }],
-  creator: "CloudIcon Studio",
-  publisher: "CloudIcon Studio",
-  metadataBase: new URL("https://cloudicon.typely.in"),
-  openGraph: {
-    title: "CloudIcon Studio — Generate Perfect App Icons in Seconds",
+function getBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return 'https://cloudicon.typely.in';
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const base = getBaseUrl();
+  return {
+    title: {
+      default: "CloudIcon Studio — Free App Icon Generator for Android, iOS & Web",
+      template: "%s | CloudIcon Studio",
+    },
     description:
-      "Upload your icon once. Instantly generate launcher icons, favicons, mipmaps, adaptive icons for Android, iOS & Web. Free, no backend, runs in your browser.",
-    url: "https://cloudicon.typely.in",
-    siteName: "CloudIcon Studio",
-    type: "website",
-    locale: "en_US",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "CloudIcon Studio" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "CloudIcon Studio — Free App Icon Generator",
-    description:
-      "Generate perfect app icons for Android, iOS & Web. Free, fast, and runs entirely in your browser.",
-    images: ["/og-image.png"],
-    creator: "@cloudicon",
-    site: "@cloudicon",
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
-  },
-  referrer: "origin-when-cross-origin",
-  manifest: "/manifest.json",
-  icons: {
-    icon: [
-      { url: "/icon.png", type: "image/png" },
-      { url: "/favicon.ico", sizes: "any" },
+      "Free app icon editor & generator. Upload once, instantly generate launcher icons, favicons, mipmaps, adaptive icons, and complete export packs for Android, iOS & Web. 100% client-side — no uploads, no servers, no accounts. Edit icons online with real-time preview, crop, rotate, background, and shape tools.",
+    keywords: [
+      "app icon generator",
+      "android icon generator",
+      "ios icon generator",
+      "favicon generator",
+      "adaptive icon generator",
+      "icon pack generator",
+      "mipmap generator",
+      "app icon maker",
+      "free icon generator",
+      "icon maker online",
+      "app icon designer",
+      "notification icon generator",
+      "icon creator",
+      "create app icons online",
+      "mobile app icon generator",
+      "icon editor",
+      "app icon creator free",
+      "generate app icons",
+      "icon design tool",
+      "icon editing tool",
+      "edit icons online",
+      "free icon editor",
+      "icon resize tool",
+      "app icon resizer",
+      "icon background changer",
+      "icon crop tool",
+      "icon shape editor",
+      "icon padding tool",
+      "android icon editor",
+      "ios icon editor",
+      "web icon editor",
+      "icon preview tool",
+      "icon export tool",
+      "icon design online",
+      "icon maker free",
     ],
-    apple: [{ url: "/icon.png", sizes: "any", type: "image/png" }],
-    other: [{ rel: "mask-icon", url: "/icon.png", color: "#215ee9" }],
-  },
-  appleWebApp: {
-    capable: true,
-    title: "CloudIcon",
-    statusBarStyle: "black-translucent",
-  },
-  other: {
-    "msapplication-TileColor": "#215ee9",
-    "format-detection": "telephone=no, email=no, address=no",
-  },
-  category: "design",
-  classification: "Design Tool",
-};
+    authors: [{ name: "CloudIcon Studio" }],
+    creator: "CloudIcon Studio",
+    publisher: "CloudIcon Studio",
+    metadataBase: new URL(base),
+    openGraph: {
+      title: "CloudIcon Studio — Generate Perfect App Icons in Seconds",
+      description:
+        "Upload your icon once. Instantly generate launcher icons, favicons, mipmaps, adaptive icons for Android, iOS & Web. Free, no backend, runs in your browser.",
+      url: base,
+      siteName: "CloudIcon Studio",
+      type: "website",
+      locale: "en_US",
+      images: [{ url: `${base}/og-image.png`, width: 1200, height: 630, alt: "CloudIcon Studio" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "CloudIcon Studio — Free App Icon Generator",
+      description:
+        "Generate perfect app icons for Android, iOS & Web. Free, fast, and runs entirely in your browser.",
+      images: [`${base}/og-image.png`],
+      creator: "@cloudicon",
+      site: "@cloudicon",
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
+    },
+    referrer: "origin-when-cross-origin",
+    manifest: "/manifest.json",
+    icons: {
+      icon: [
+        { url: "/icon.png", type: "image/png" },
+        { url: "/favicon.ico", sizes: "any" },
+      ],
+      apple: [{ url: "/icon.png", sizes: "any", type: "image/png" }],
+      other: [{ rel: "mask-icon", url: "/icon.png", color: "#215ee9" }],
+    },
+    appleWebApp: {
+      capable: true,
+      title: "CloudIcon",
+      statusBarStyle: "black-translucent",
+    },
+    other: {
+      "msapplication-TileColor": "#215ee9",
+      "format-detection": "telephone=no, email=no, address=no",
+    },
+    category: "design",
+    classification: "Design Tool",
+  };
+}
 
 export default function RootLayout({
   children,

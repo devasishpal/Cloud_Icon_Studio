@@ -8,27 +8,29 @@ const footerLinks = [
   {
     title: 'Product',
     links: [
-      { label: 'Features', href: '#features' },
-      { label: 'Platforms', href: '#platforms' },
-      { label: 'How it Works', href: '/how-it-works' },
-      { label: 'Launch Editor', href: '#upload-area' },
+      { label: 'App Icon Generator', href: '/editor' },
+      { label: 'How It Works', href: '/how-it-works' },
+      { label: 'Documentation', href: '/docs' },
+      { label: 'Changelog', href: '/changelog' },
+    ],
+  },
+  {
+    title: 'Platform Tools',
+    links: [
+      { label: 'Android Icon Generator', href: '/editor' },
+      { label: 'iOS Icon Generator', href: '/editor' },
+      { label: 'Favicon Generator', href: '/editor' },
+      { label: 'Desktop Icon Maker', href: '/editor' },
     ],
   },
   {
     title: 'Resources',
     links: [
-      { label: 'Documentation', href: '/docs' },
       { label: 'FAQ', href: '/faq' },
-      { label: 'Changelog', href: '/changelog' },
-      { label: 'Status', href: '/status' },
-    ],
-  },
-  {
-    title: 'Company',
-    links: [
-      { label: 'About', href: '/about' },
       { label: 'Blog', href: '/blog' },
-      { label: 'Contact', href: '/contact' },
+      { label: 'Service Status', href: '/status' },
+      { label: 'About Us', href: '/about' },
+      { label: 'Contact Support', href: '/contact' },
     ],
   },
   {
@@ -37,8 +39,18 @@ const footerLinks = [
       { label: 'Privacy Policy', href: '/privacy' },
       { label: 'Terms of Service', href: '/terms' },
       { label: 'Cookie Policy', href: '/cookies' },
-      { label: 'GDPR', href: '/gdpr' },
-      { label: 'CCPA', href: '/ccpa' },
+      { label: 'GDPR Compliance', href: '/gdpr' },
+      { label: 'CCPA Compliance', href: '/ccpa' },
+    ],
+  },
+  {
+    title: 'Popular Searches',
+    links: [
+      { label: 'Free App Icon Maker', href: '/editor' },
+      { label: 'Adaptive Icon Generator', href: '/editor' },
+      { label: 'App Icon Creator Online', href: '/editor' },
+      { label: 'Icon Pack Generator', href: '/editor' },
+      { label: 'Mipmap Icon Generator', href: '/editor' },
     ],
   },
 ];
@@ -54,26 +66,27 @@ export function Footer() {
   return (
     <footer className="border-t border-border/50 bg-muted/50">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-4 lg:grid-cols-5">
-          <div className="col-span-2 sm:col-span-2 lg:col-span-1">
-            <Link href="/" className="inline-flex items-center gap-3 group mb-4">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="col-span-2 sm:col-span-3 lg:col-span-1">
+            <Link href="/" className="inline-flex items-center gap-3 group mb-4" aria-label="CloudIcon Studio Home">
               <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors overflow-hidden shrink-0">
-                <Image src="/icon.png" alt="CloudIcon" width={36} height={36} className="object-contain shrink-0" />
+                <Image src="/icon.png" alt="CloudIcon Studio logo" width={36} height={36} className="object-contain shrink-0" />
               </div>
               <span className="text-lg font-extrabold tracking-wide" style={{ background: 'linear-gradient(135deg, #215ee9, #e040cf, #faa83b, #08cbfb)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>CloudIcon Studio</span>
             </Link>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-5 pr-4">
-              Generate polished app icons for every platform — Android, iOS, Web, and Desktop.
-              100% client-side, zero uploads.
+            <p className="text-sm text-muted-foreground leading-relaxed mb-4 pr-4">
+              CloudIcon Studio is a free online app icon generator and editor. Create polished
+              production-ready launcher icons, favicons, adaptive icons, and complete icon packs
+              for Android, iOS, Web, and Desktop — entirely in your browser. No uploads, no accounts.
             </p>
-            <div className="flex items-center gap-1.5">
-              <Link href="/" className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all" aria-label="Website">
+            <div className="flex items-center gap-1.5 mb-5">
+              <Link href="/" className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all" aria-label="CloudIcon Home">
                 <Globe className="size-4" />
               </Link>
-              <Link href="/blog" className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all" aria-label="Blog">
+              <Link href="/blog" className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all" aria-label="CloudIcon Blog">
                 <ExternalLink className="size-4" />
               </Link>
-              <Link href="/contact" className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all" aria-label="Email">
+              <Link href="/contact" className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all" aria-label="Contact CloudIcon">
                 <Mail className="size-4" />
               </Link>
             </div>
