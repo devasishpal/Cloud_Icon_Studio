@@ -1,0 +1,47 @@
+# CloudIcon Studio — Free App Icon Generator
+
+> CloudIcon Studio is a free online app icon generator and editor. Upload once and instantly generate production-ready launcher icons, favicons, mipmaps, adaptive icons, and complete export packs for Android, iOS, Web, and Desktop. 100% client-side — no uploads, no servers, no accounts.
+
+## Key pages
+
+- Home: https://cloudicon.typely.in — Free app icon maker and editor
+- Editor: https://cloudicon.typely.in/editor — Online app icon editor with real-time preview
+- How It Works: https://cloudicon.typely.in/how-it-works — Step-by-step guide to generating app icons
+- Documentation: https://cloudicon.typely.in/docs — Complete documentation for the icon generator
+- FAQ: https://cloudicon.typely.in/faq — Frequently asked questions about app icon generation
+- Blog: https://cloudicon.typely.in/blog — Articles and updates about app icon design
+- About: https://cloudicon.typely.in/about — About CloudIcon Studio
+- Contact: https://cloudicon.typely.in/contact — Support and contact information
+- Changelog: https://cloudicon.typely.in/changelog — Release notes and version history
+- Status: https://cloudicon.typely.in/status — Service uptime and status
+- Privacy Policy: https://cloudicon.typely.in/privacy
+- Terms of Service: https://cloudicon.typely.in/terms
+- Cookie Policy: https://cloudicon.typely.in/cookies
+- GDPR Compliance: https://cloudicon.typely.in/gdpr
+- CCPA Compliance: https://cloudicon.typely.in/ccpa
+
+## Structured data
+
+The site uses JSON-LD schema.org markup including: Organization, WebSite, WebApplication, SoftwareApplication, HowTo, BreadcrumbList, and FAQPage.
+
+## Features
+
+- Multi-platform icon export (Android, iOS, Web, Desktop)
+- GPU-accelerated canvas with real-time rendering and device mockups
+- Shape, crop, rotate, background (solid/gradient), and padding tools
+- Undo/redo with keyboard shortcuts
+- 100% client-side — your images never leave your device
+- PWA with offline support
+- Adaptive icon generation for Android
+- iOS App Store icon sets with Contents.json
+- Web favicon and PWA manifest icon export
+- Desktop icon export (Windows ICO, macOS ICNS, Linux PNG)
+- ZIP export with proper folder hierarchy per platform
+
+## Technologies
+
+Built with Next.js, TypeScript, Tailwind CSS, Fabric.js, Framer Motion, deployed on Vercel.
+
+## Support
+
+- Email: support@typely.in

@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
 
+User-agent: GPTBot
+Disallow: /
+
 Sitemap: https://cloudicon.typely.in/sitemap.xml
