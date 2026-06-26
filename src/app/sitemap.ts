@@ -1,7 +1,17 @@
 import type { MetadataRoute } from 'next';
 
+function getBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return 'https://cloudicon.typely.in';
+}
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = 'https://cloudicon.typely.in';
+  const base = getBaseUrl();
   return [
     { url: base, lastModified: new Date(), changeFrequency: 'monthly', priority: 1.0 },
     { url: `${base}/editor`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.9 },
