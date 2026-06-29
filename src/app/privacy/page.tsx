@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   description: 'CloudIcon Studio processes all images entirely in your browser. No image data is ever uploaded to any server. Your privacy is fully protected — no tracking, no accounts, no data collection.',
   keywords: ['CloudIcon Studio privacy policy', 'app icon generator privacy', 'client-side processing', 'no data upload', 'privacy-first icon generator', 'browser-based privacy', 'no tracking icon tool'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.typely.in/privacy' },
+  alternates: { canonical: 'https://cloudicon.vercel.app/privacy' },
   openGraph: {
     title: 'Privacy Policy — App Icon Generator | CloudIcon Studio',
     description: 'CloudIcon Studio is privacy-first. All image processing happens in your browser — zero uploads, zero tracking, zero data collection.',
-    url: 'https://cloudicon.typely.in/privacy',
+    url: 'https://cloudicon.vercel.app/privacy',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',

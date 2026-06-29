@@ -7,7 +7,7 @@ function getBaseUrl(): string {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
-  return 'https://cloudicon.typely.in';
+  return 'https://cloudicon.vercel.app';
 }
 
 export default function sitemap(): MetadataRoute.Sitemap {

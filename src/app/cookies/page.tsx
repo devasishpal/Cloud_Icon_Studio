@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   description: 'CloudIcon Studio does not use tracking cookies. We use local storage only for theme preferences and editor state. No data is ever sent to external servers or third parties.',
   keywords: ['CloudIcon Studio cookie policy', 'no tracking cookies', 'local storage only', 'cookie-free app icon generator', 'browser privacy', 'no cookies icon tool'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.typely.in/cookies' },
+  alternates: { canonical: 'https://cloudicon.vercel.app/cookies' },
   openGraph: {
     title: 'Cookie Policy — No Tracking Cookies | CloudIcon Studio',
     description: 'CloudIcon Studio does not use tracking cookies. Local storage only for preferences. Zero third-party scripts, zero analytics, zero tracking.',
-    url: 'https://cloudicon.typely.in/cookies',
+    url: 'https://cloudicon.vercel.app/cookies',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',

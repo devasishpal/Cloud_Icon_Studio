@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Script from 'next/script';
 import { PageLayout } from '@/components/layout/page-layout';
 
 export const metadata: Metadata = {
@@ -8,11 +7,11 @@ export const metadata: Metadata = {
   description: 'Articles and updates about app icon design, generation tips, and best practices for Android, iOS, Web, and Desktop icons.',
   keywords: ['app icon blog', 'icon design tips', 'app icon best practices', 'Android icon guide', 'iOS icon guide', 'favicon design'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.typely.in/blog' },
+  alternates: { canonical: 'https://cloudicon.vercel.app/blog' },
   openGraph: {
     title: 'Blog — CloudIcon Studio',
     description: 'Articles and updates about app icon design, generation tips, and best practices for Android, iOS, Web, and Desktop icons.',
-    url: 'https://cloudicon.typely.in/blog',
+    url: 'https://cloudicon.vercel.app/blog',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',
@@ -29,19 +28,17 @@ export const metadata: Metadata = {
 const blogSchema = {
   '@context': 'https://schema.org',
   '@type': 'Blog',
-  '@id': 'https://cloudicon.typely.in/blog#blog',
+  '@id': 'https://cloudicon.vercel.app/blog#blog',
   name: 'CloudIcon Studio Blog',
   description: 'Articles and updates about app icon design, generation tips, and best practices for Android, iOS, Web, and Desktop icons.',
-  publisher: { '@id': 'https://cloudicon.typely.in/#organization' },
-  url: 'https://cloudicon.typely.in/blog',
+  publisher: { '@id': 'https://cloudicon.vercel.app/#organization' },
+  url: 'https://cloudicon.vercel.app/blog',
 };
 
 export default function BlogPage() {
   return (
     <PageLayout>
-    <Script id="blog-schema" type="application/ld+json" strategy="afterInteractive">
-      {JSON.stringify(blogSchema)}
-    </Script>
+    <script id="blog-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(blogSchema).replace(/</g, '\\u003c') }} />
     <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
       <Link href="/" className="text-sm text-primary hover:underline mb-8 inline-block">&larr; Back to Home</Link>
       <h1 className="text-3xl font-bold tracking-tight mb-4">Blog</h1>

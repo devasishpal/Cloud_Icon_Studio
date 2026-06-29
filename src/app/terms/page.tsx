@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   description: 'CloudIcon Studio Terms of Service. Free to use for personal and commercial projects. You retain all rights to your images and generated icons. No royalties, no attribution required.',
   keywords: ['CloudIcon Studio terms of service', 'free icon generator terms', 'commercial use icon generator', 'app icon license terms', 'free for commercial use icon tool'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.typely.in/terms' },
+  alternates: { canonical: 'https://cloudicon.vercel.app/terms' },
   openGraph: {
     title: 'Terms of Service — Free App Icon Generator | CloudIcon Studio',
     description: 'CloudIcon Studio is free to use for personal and commercial projects. You retain all rights to your images and generated icons.',
-    url: 'https://cloudicon.typely.in/terms',
+    url: 'https://cloudicon.vercel.app/terms',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',

@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   description: 'CloudIcon Studio is fully CCPA compliant. We do not collect, sell, or share any personal information. All image processing is done entirely client-side in your browser.',
   keywords: ['CloudIcon Studio CCPA', 'CCPA compliance', 'California privacy rights icon generator', 'no data collection icon tool', 'client-side privacy', 'no personal information sold'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.typely.in/ccpa' },
+  alternates: { canonical: 'https://cloudicon.vercel.app/ccpa' },
   openGraph: {
     title: 'CCPA Compliance — App Icon Generator | CloudIcon Studio',
     description: 'CloudIcon Studio is CCPA compliant. Zero personal information is collected, sold, or shared. All processing is 100% client-side.',
-    url: 'https://cloudicon.typely.in/ccpa',
+    url: 'https://cloudicon.vercel.app/ccpa',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',

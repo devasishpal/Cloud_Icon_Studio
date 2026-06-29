@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   description: 'CloudIcon Studio is fully GDPR compliant. As a 100% client-side application, no personal data is collected, processed, or stored on servers. Your data stays in your browser.',
   keywords: ['CloudIcon Studio GDPR', 'GDPR compliance icon generator', 'data protection', 'EU privacy rights', 'client-side app icon tool', 'no data collection icon generator'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.typely.in/gdpr' },
+  alternates: { canonical: 'https://cloudicon.vercel.app/gdpr' },
   openGraph: {
     title: 'GDPR Compliance — App Icon Generator | CloudIcon Studio',
     description: 'CloudIcon Studio is fully GDPR compliant. All data remains in your browser. Zero cookies, zero analytics, zero tracking scripts.',
-    url: 'https://cloudicon.typely.in/gdpr',
+    url: 'https://cloudicon.vercel.app/gdpr',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',

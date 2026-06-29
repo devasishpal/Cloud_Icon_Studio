@@ -5,6 +5,22 @@ export const metadata: Metadata = {
   title: '404 - Page Not Found | CloudIcon Studio',
   description: 'The page you are looking for does not exist or has been moved. Return to CloudIcon Studio to generate app icons.',
   robots: { index: false, follow: false },
+  alternates: { canonical: 'https://cloudicon.vercel.app/404' },
+  openGraph: {
+    title: '404 - Page Not Found | CloudIcon Studio',
+    description: 'The page you are looking for does not exist or has been moved.',
+    url: 'https://cloudicon.vercel.app/404',
+    siteName: 'CloudIcon Studio',
+    type: 'website',
+    locale: 'en_US',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'CloudIcon Studio' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '404 - Page Not Found | CloudIcon Studio',
+    description: 'The page you are looking for does not exist or has been moved.',
+    images: ['/og-image.png'],
+  },
 };
 
 export default function NotFound() {

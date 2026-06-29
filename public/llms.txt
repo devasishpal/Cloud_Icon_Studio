@@ -4,21 +4,21 @@
 
 ## Key pages
 
-- Home: https://cloudicon.typely.in — Free app icon maker and editor
-- Editor: https://cloudicon.typely.in/editor — Online app icon editor with real-time preview
-- How It Works: https://cloudicon.typely.in/how-it-works — Step-by-step guide to generating app icons
-- Documentation: https://cloudicon.typely.in/docs — Complete documentation for the icon generator
-- FAQ: https://cloudicon.typely.in/faq — Frequently asked questions about app icon generation
-- Blog: https://cloudicon.typely.in/blog — Articles and updates about app icon design
-- About: https://cloudicon.typely.in/about — About CloudIcon Studio
-- Contact: https://cloudicon.typely.in/contact — Support and contact information
-- Changelog: https://cloudicon.typely.in/changelog — Release notes and version history
-- Status: https://cloudicon.typely.in/status — Service uptime and status
-- Privacy Policy: https://cloudicon.typely.in/privacy
-- Terms of Service: https://cloudicon.typely.in/terms
-- Cookie Policy: https://cloudicon.typely.in/cookies
-- GDPR Compliance: https://cloudicon.typely.in/gdpr
-- CCPA Compliance: https://cloudicon.typely.in/ccpa
+- Home: https://cloudicon.vercel.app — Free app icon maker and editor
+- Editor: https://cloudicon.vercel.app/editor — Online app icon editor with real-time preview
+- How It Works: https://cloudicon.vercel.app/how-it-works — Step-by-step guide to generating app icons
+- Documentation: https://cloudicon.vercel.app/docs — Complete documentation for the icon generator
+- FAQ: https://cloudicon.vercel.app/faq — Frequently asked questions about app icon generation
+- Blog: https://cloudicon.vercel.app/blog — Articles and updates about app icon design
+- About: https://cloudicon.vercel.app/about — About CloudIcon Studio
+- Contact: https://cloudicon.vercel.app/contact — Support and contact information
+- Changelog: https://cloudicon.vercel.app/changelog — Release notes and version history
+- Status: https://cloudicon.vercel.app/status — Service uptime and status
+- Privacy Policy: https://cloudicon.vercel.app/privacy
+- Terms of Service: https://cloudicon.vercel.app/terms
+- Cookie Policy: https://cloudicon.vercel.app/cookies
+- GDPR Compliance: https://cloudicon.vercel.app/gdpr
+- CCPA Compliance: https://cloudicon.vercel.app/ccpa
 
 ## Structured data
 

@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   description: 'CloudIcon Studio service status. Since our app icon generator runs 100% client-side in your browser, there is no server downtime. Always operational.',
   keywords: ['CloudIcon Studio status', 'service status', 'app icon generator uptime', 'client-side status', 'zero downtime icon tool', 'app availability'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.typely.in/status' },
+  alternates: { canonical: 'https://cloudicon.vercel.app/status' },
   openGraph: {
     title: 'Service Status — App Icon Generator Uptime',
     description: 'CloudIcon Studio runs 100% in your browser — zero server dependencies, zero downtime. Check live status here.',
-    url: 'https://cloudicon.typely.in/status',
+    url: 'https://cloudicon.vercel.app/status',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',

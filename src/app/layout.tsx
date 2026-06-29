@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 function getBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return 'https://cloudicon.typely.in';
+  return 'https://cloudicon.vercel.app';
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -155,15 +155,6 @@ export default function RootLayout({
               })();
             `,
           }} />
-        <link rel="icon" href="/icon.png" type="image/png" />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#215ee9" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <meta name="application-name" content="CloudIcon" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-dvh flex flex-col bg-background text-foreground overflow-x-hidden">
         <JsonLd />

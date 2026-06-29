@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Script from 'next/script';
 import { Upload, Sliders, Eye, Download, Image, Shapes, Palette, Smartphone, ArrowRight, Zap, Shield } from 'lucide-react';
 import { PageLayout } from '@/components/layout/page-layout';
 
@@ -9,11 +8,11 @@ export const metadata: Metadata = {
   description: 'Learn how to generate app icons for Android, iOS, Web & Desktop with CloudIcon Studio. Upload, customize, preview, and export in under a minute — 100% in your browser.',
   keywords: ['how to make app icons', 'app icon generator guide', 'how app icon generator works', 'create app icons', 'icon generator tutorial', 'browser-based icon tool', 'app icon creation guide', 'generate app icons online'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.typely.in/how-it-works' },
+  alternates: { canonical: 'https://cloudicon.vercel.app/how-it-works' },
   openGraph: {
     title: 'How to Make App Icons — Step-by-Step Guide',
     description: 'Upload once, generate production-ready icons for Android, iOS, Web, and Desktop. Complete guide with step-by-step instructions.',
-    url: 'https://cloudicon.typely.in/how-it-works',
+    url: 'https://cloudicon.vercel.app/how-it-works',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',
@@ -81,10 +80,10 @@ const highlights = [
 const howItWorksSchema = {
   '@context': 'https://schema.org',
   '@type': 'HowTo',
-  '@id': 'https://cloudicon.typely.in/how-it-works#howto',
+  '@id': 'https://cloudicon.vercel.app/how-it-works#howto',
   name: 'How to Make App Icons with CloudIcon Studio',
   description: 'Learn how to generate app icons for Android, iOS, Web & Desktop. Upload, customize, preview, and export in under a minute — 100% in your browser.',
-  image: 'https://cloudicon.typely.in/og-image.png',
+  image: 'https://cloudicon.vercel.app/og-image.png',
   estimatedTime: 'PT1M',
   step: [
     { '@type': 'HowToStep', position: 1, name: 'Upload Your Image',
@@ -101,9 +100,7 @@ const howItWorksSchema = {
 export default function HowItWorksPage() {
   return (
     <PageLayout>
-    <Script id="how-it-works-schema" type="application/ld+json" strategy="afterInteractive">
-      {JSON.stringify(howItWorksSchema)}
-    </Script>
+    <script id="how-it-works-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(howItWorksSchema).replace(/</g, '\\u003c') }} />
     <main className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-8">
         <span aria-hidden="true">&larr;</span> Back to Home

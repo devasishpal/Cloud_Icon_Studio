@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Script from 'next/script';
 import { PageLayout } from '@/components/layout/page-layout';
 import { ChevronDown, FileImage, Shield, Smartphone, Monitor, Globe, Palette, Download, Lock, Server, Zap } from 'lucide-react';
 
@@ -9,11 +8,11 @@ export const metadata: Metadata = {
   description: 'Frequently asked questions about CloudIcon Studio. Learn about supported formats, privacy, platforms, export options, and more about our free app icon generator.',
   keywords: ['app icon generator FAQ', 'icon generator questions', 'app icon tool help', 'icon generator privacy', 'supported icon formats', 'icon export sizes', 'free icon generator', 'app icon maker FAQ'],
   robots: { index: true, follow: true },
-  alternates: { canonical: 'https://cloudicon.typely.in/faq' },
+  alternates: { canonical: 'https://cloudicon.vercel.app/faq' },
   openGraph: {
     title: 'FAQ — Free App Icon Generator | CloudIcon Studio',
     description: 'Everything you need to know about CloudIcon Studio — supported formats, platforms, privacy, export options, and more.',
-    url: 'https://cloudicon.typely.in/faq',
+    url: 'https://cloudicon.vercel.app/faq',
     siteName: 'CloudIcon Studio',
     type: 'website',
     locale: 'en_US',
@@ -169,7 +168,7 @@ const categories = [
 const faqSchema = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
-  '@id': 'https://cloudicon.typely.in/faq#faq',
+  '@id': 'https://cloudicon.vercel.app/faq#faq',
   mainEntity: categories.flatMap(cat =>
     cat.questions.map(q => ({
       '@type': 'Question',
@@ -182,9 +181,7 @@ const faqSchema = {
 export default function FAQPage() {
   return (
     <PageLayout>
-    <Script id="faq-schema" type="application/ld+json" strategy="afterInteractive">
-      {JSON.stringify(faqSchema)}
-    </Script>
+    <script id="faq-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema).replace(/</g, '\\u003c') }} />
     <main className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="flex items-center gap-4 mb-2">
         <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10">
