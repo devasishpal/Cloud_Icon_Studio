@@ -1,223 +1,89 @@
 'use client';
 
-import type { ImageInfo, BackgroundType, GradientPreset, IconShape } from '@/types';
+import type {
+  BackgroundType,
+  GradientPreset,
+  IconShape,
+  ImageAdjustments,
+  ImageEffects,
+  ImageFit,
+  ImageInfo,
+  ImageTransform,
+} from '@/types';
+import { renderIcon, type RenderConfig } from '@/lib/render';
+import { encodeIco, encodeIcns, blobToBase64 } from '@/lib/icon-encoders';
+import { SOCIAL_SIZES, SPLASH_SIZES } from '@/lib/constants';
 
-export interface ProcessedIcon {
-  name: string;
-  size: number;
+/** Everything the shared renderer needs to reproduce the editor canvas. */
+export interface RenderSettings {
+  image: ImageInfo;
+  padding: number;
+  rotation: number;
+  backgroundColor: string;
+  backgroundType: BackgroundType;
+  gradientPreset: GradientPreset | null;
+  iconShape: IconShape;
+  fit: ImageFit;
+  transform: ImageTransform;
+  adjustments: ImageAdjustments;
+  effects: ImageEffects;
+}
+
+export interface ExportFile {
+  path: string;
   blob: Blob;
-  dataUrl: string;
 }
 
-export type ProcessingTask =
-  | { platform: 'android'; step: string; done: number; total: number }
-  | { platform: 'ios'; step: string; done: number; total: number }
-  | { platform: 'web'; step: string; done: number; total: number }
-  | { platform: 'desktop'; step: string; done: number; total: number };
-
-type ProgressCallback = (task: { platform: string; step: string; done: number; total: number }) => void;
-
-function drawShapeClip(ctx: CanvasRenderingContext2D, shape: IconShape, size: number) {
-  const cx = size / 2, cy = size / 2, r = size / 2;
-  ctx.beginPath();
-  switch (shape) {
-    case 'circle':
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      break;
-    case 'squircle': {
-      const rr = size * 0.3;
-      ctx.roundRect(0, 0, size, size, rr);
-      break;
-    }
-    case 'rounded-square': {
-      const rr = size * 0.22;
-      ctx.roundRect(0, 0, size, size, rr);
-      break;
-    }
-    case 'teardrop':
-      ctx.moveTo(cx, size);
-      ctx.bezierCurveTo(size, size, size, cy + r * 0.3, size, cy);
-      ctx.bezierCurveTo(size, cy * 0.2, cx + r * 0.8, cy - r, cx, cy - r);
-      ctx.bezierCurveTo(cx - r * 0.8, cy - r, 0, cy * 0.2, 0, cy);
-      ctx.bezierCurveTo(0, cy + r * 0.3, 0, size, cx, size);
-      break;
-  }
-  ctx.closePath();
+export interface ExportText {
+  path: string;
+  content: string;
 }
 
-export function renderMasterCanvas(
-  image: ImageInfo,
-  padding: number,
-  backgroundColor: string,
-  rotation: number,
-  backgroundType: BackgroundType = 'solid',
-  gradientPreset: GradientPreset | null = null,
-  iconShape: IconShape | null = null,
-  size: number = 1024
-): Promise<HTMLCanvasElement> {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d')!;
-
-      if (iconShape) {
-        ctx.save();
-        drawShapeClip(ctx, iconShape, size);
-        ctx.clip();
-      }
-
-      if (backgroundType === 'transparent') {
-        // transparent — no fill
-      } else if (backgroundType === 'gradient' && gradientPreset) {
-        const angle = gradientPreset.angle;
-        const rad = (angle * Math.PI) / 180;
-        const cos = Math.cos(rad), sin = Math.sin(rad);
-        const g = ctx.createLinearGradient(
-          0.5 - cos * 0.5, 0.5 - sin * 0.5,
-          0.5 + cos * 0.5, 0.5 + sin * 0.5
-        );
-        g.addColorStop(0, gradientPreset.colors[0]);
-        g.addColorStop(1, gradientPreset.colors[1]);
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, size, size);
-      } else {
-        ctx.fillStyle = backgroundColor;
-        ctx.fillRect(0, 0, size, size);
-      }
-
-      const padRatio = padding / 100;
-      const drawSize = size * (1 - padRatio);
-      const scale = Math.min(drawSize / img.naturalWidth, drawSize / img.naturalHeight);
-      const w = img.naturalWidth * scale;
-      const h = img.naturalHeight * scale;
-
-      ctx.save();
-      ctx.translate(size / 2, size / 2);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.drawImage(img, -w / 2, -h / 2, w, h);
-      ctx.restore();
-
-      if (iconShape) {
-        ctx.restore();
-      }
-
-      resolve(canvas);
-    };
-    img.onerror = reject;
-    img.src = image.dataUrl!;
-  });
+interface ExportFileJob {
+  path: string;
+  render: () => Promise<Blob>;
 }
 
-function fastResize(
-  source: HTMLCanvasElement,
-  width: number,
-  height: number
-): Promise<Blob> {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d')!;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = width > 180 ? 'high' : 'medium';
-  ctx.drawImage(source, 0, 0, width, height);
-  return new Promise((resolve) => canvas.toBlob((b) => resolve(b!), 'image/png'));
+export interface ExportPlan {
+  files: ExportFileJob[];
+  texts: ExportText[];
+  total: number;
 }
 
-export async function resizeWithPica(
-  source: HTMLCanvasElement | HTMLImageElement | Blob,
-  width: number,
-  height: number
-): Promise<Blob> {
-  if (width <= 180 && source instanceof HTMLCanvasElement) {
-    return fastResize(source, width, height);
-  }
+type ProgressCallback = (task: {
+  platform: string;
+  step: string;
+  done: number;
+  total: number;
+}) => void;
 
-  let sourceCanvas: HTMLCanvasElement;
-  if (source instanceof Blob) {
-    const img = await createImageBitmap(source);
-    sourceCanvas = document.createElement('canvas');
-    sourceCanvas.width = img.width;
-    sourceCanvas.height = img.height;
-    sourceCanvas.getContext('2d')!.drawImage(img, 0, 0);
-    img.close();
-  } else if (source instanceof HTMLCanvasElement) {
-    sourceCanvas = source;
-  } else {
-    sourceCanvas = document.createElement('canvas');
-    sourceCanvas.width = source.naturalWidth;
-    sourceCanvas.height = source.naturalHeight;
-    sourceCanvas.getContext('2d')!.drawImage(source, 0, 0);
-  }
+export type ExportPreset =
+  | 'full'
+  | 'android'
+  | 'ios'
+  | 'web'
+  | 'pwa'
+  | 'desktop'
+  | 'splash'
+  | 'social'
+  | 'minimal';
 
-  if (width <= 512) {
-    return fastResize(sourceCanvas, width, height);
-  }
+export const EXPORT_PRESETS: Record<
+  ExportPreset,
+  { label: string; description: string; icon: string }
+> = {
+  full: { label: 'Full Pack', description: 'Every platform, size and asset', icon: 'Package' },
+  android: { label: 'Android', description: 'Mipmaps, adaptive, monochrome', icon: 'Smartphone' },
+  ios: { label: 'iOS', description: 'AppIcon set + Contents.json', icon: 'Apple' },
+  web: { label: 'Web', description: 'Favicons, PWA, ICO + manifest', icon: 'Globe' },
+  pwa: { label: 'PWA Pack', description: 'Install icons + manifest', icon: 'Monitor' },
+  desktop: { label: 'Desktop', description: 'Windows, macOS, Linux + ICO/ICNS', icon: 'Monitor' },
+  splash: { label: 'Splash Screens', description: 'iOS launch screens for every device', icon: 'Images' },
+  social: { label: 'Social Cards', description: 'Open Graph & social preview images', icon: 'Image' },
+  minimal: { label: 'Minimal', description: 'The six files you actually need', icon: 'FileDown' },
+};
 
-  const pica = (await import('pica')).default;
-  const resizer = pica();
-
-  const dest = document.createElement('canvas');
-  dest.width = width;
-  dest.height = height;
-
-  await resizer.resize(sourceCanvas, dest, {
-    filter: 'lanczos2',
-    unsharpAmount: 40,
-    unsharpRadius: 0.4,
-    unsharpThreshold: 1,
-  });
-
-  return new Promise((resolve) => dest.toBlob((b) => resolve(b!), 'image/png'));
-}
-
-export function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function renderFullIcon(master: HTMLCanvasElement, size: number): Promise<Blob> {
-  return resizeWithPica(master, size, size);
-}
-
-async function renderForegroundOnly(
-  image: ImageInfo,
-  padding: number,
-  rotation: number,
-  size: number
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d')!;
-      const cx = size / 2, cy = size / 2;
-      const padRatio = padding / 100;
-      const drawSize = size * (1 - padRatio);
-      const scale = Math.min(drawSize / img.naturalWidth, drawSize / img.naturalHeight);
-      const w = img.naturalWidth * scale;
-      const h = img.naturalHeight * scale;
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.drawImage(img, -w / 2, -h / 2, w, h);
-      ctx.restore();
-      canvas.toBlob((b) => resolve(b!), 'image/png');
-    };
-    img.onerror = reject;
-    img.src = image.dataUrl!;
-  });
-}
-
-const ANDROID_DENSITIES = [
+const ANDROID_LEGACY = [
   { dir: 'mipmap-ldpi', size: 36 },
   { dir: 'mipmap-mdpi', size: 48 },
   { dir: 'mipmap-hdpi', size: 72 },
@@ -226,382 +92,679 @@ const ANDROID_DENSITIES = [
   { dir: 'mipmap-xxxhdpi', size: 192 },
 ];
 
-export async function generateAndroidIcons(
-  masterCanvas: HTMLCanvasElement,
-  image: ImageInfo,
-  padding: number,
-  rotation: number,
-  onProgress: ProgressCallback
-): Promise<{ path: string; blob: Blob }[]> {
-  const results: { path: string; blob: Blob }[] = [];
-
-  for (let i = 0; i < ANDROID_DENSITIES.length; i++) {
-    const d = ANDROID_DENSITIES[i];
-    const tot = ANDROID_DENSITIES.length * 3 + 3;
-
-    // ic_launcher.png — full icon (background + shape + image)
-    onProgress({ platform: 'android', step: `${d.dir}/ic_launcher.png`, done: i * 3, total: tot });
-    results.push({ path: `android/${d.dir}/ic_launcher.png`, blob: await renderFullIcon(masterCanvas, d.size) });
-
-    // ic_launcher_round.png — same full icon clipped to circle
-    onProgress({ platform: 'android', step: `${d.dir}/ic_launcher_round.png`, done: i * 3 + 1, total: tot });
-    const roundCanvas = document.createElement('canvas');
-    roundCanvas.width = d.size;
-    roundCanvas.height = d.size;
-    const rctx = roundCanvas.getContext('2d')!;
-    rctx.beginPath();
-    rctx.arc(d.size / 2, d.size / 2, d.size / 2, 0, Math.PI * 2);
-    rctx.clip();
-    rctx.drawImage(masterCanvas, 0, 0, d.size, d.size);
-    const roundBlob = await new Promise<Blob>((r) => roundCanvas.toBlob((b) => r(b!), 'image/png'));
-    results.push({ path: `android/${d.dir}/ic_launcher_round.png`, blob: roundBlob });
-
-    // ic_launcher_foreground.png — foreground only (no background, no shape)
-    onProgress({ platform: 'android', step: `${d.dir}/ic_launcher_foreground.png`, done: i * 3 + 2, total: tot });
-    results.push({ path: `android/${d.dir}/ic_launcher_foreground.png`, blob: await renderForegroundOnly(image, padding, rotation, d.size) });
-  }
-
-  // Root-level files
-  const rootIdx = ANDROID_DENSITIES.length * 3;
-  const tot = ANDROID_DENSITIES.length * 3 + 3;
-
-  // playstore-icon.png
-  onProgress({ platform: 'android', step: 'playstore-icon.png', done: rootIdx, total: tot });
-  results.push({ path: 'android/playstore-icon.png', blob: await renderFullIcon(masterCanvas, 512) });
-
-  // ic_launcher-web.png
-  onProgress({ platform: 'android', step: 'ic_launcher-web.png', done: rootIdx + 1, total: tot });
-  results.push({ path: 'android/ic_launcher-web.png', blob: await renderFullIcon(masterCanvas, 512) });
-
-  return results;
-}
-
-export function generateAdaptiveIconXmls(): { path: string; content: string }[] {
-  const xml = (name: string) => `<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
-</adaptive-icon>`;
-  return [
-    { path: 'android/mipmap-anydpi-v26/ic_launcher.xml', content: xml('ic_launcher') },
-    { path: 'android/mipmap-anydpi-v26/ic_launcher_round.xml', content: xml('ic_launcher_round') },
-  ];
-}
-
-export function generateBackgroundColorXml(backgroundColor: string): { path: string; content: string } {
-  const color = backgroundColor.replace('#', '');
-  return {
-    path: 'android/values/ic_launcher_background.xml',
-    content: `<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="ic_launcher_background">#${color}</color>
-</resources>`,
-  };
-}
-
-export async function generateAndroidAdaptiveImages(
-  masterCanvas: HTMLCanvasElement,
-  backgroundColor: string,
-  onProgress: ProgressCallback
-): Promise<{ path: string; blob: Blob }[]> {
-  onProgress({ platform: 'android', step: 'adaptive-foreground', done: 0, total: 2 });
-
-  const bgCanvas = document.createElement('canvas');
-  bgCanvas.width = 108;
-  bgCanvas.height = 108;
-  const bgCtx = bgCanvas.getContext('2d')!;
-  bgCtx.fillStyle = backgroundColor;
-  bgCtx.beginPath();
-  bgCtx.arc(54, 54, 48, 0, Math.PI * 2);
-  bgCtx.fill();
-  const bgBlob = await new Promise<Blob>((r) => bgCanvas.toBlob((b) => r(b!), 'image/png'));
-
-  onProgress({ platform: 'android', step: 'adaptive-background', done: 1, total: 2 });
-  const fgBlob = await resizeWithPica(masterCanvas, 108, 108);
-
-  return [
-    { path: 'Android/mipmap-anydpi-v26/ic_launcher_background.png', blob: bgBlob },
-    { path: 'Android/mipmap-anydpi-v26/ic_launcher_foreground.png', blob: fgBlob },
-  ];
-}
-
-export async function generateAndroidMonochrome(
-  masterCanvas: HTMLCanvasElement
-): Promise<{ path: string; blob: Blob }> {
-  const canvas = document.createElement('canvas');
-  canvas.width = 108;
-  canvas.height = 108;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(masterCanvas, 0, 0, 108, 108);
-  const imageData = ctx.getImageData(0, 0, 108, 108);
-  const data = imageData.data;
-  for (let i = 0; i < data.length; i += 4) {
-    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    data[i] = gray;
-    data[i + 1] = gray;
-    data[i + 2] = gray;
-  }
-  ctx.putImageData(imageData, 0, 0);
-  const blob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), 'image/png'));
-  return { path: 'android/mipmap-anydpi-v26/ic_launcher_monochrome.png', blob };
-}
-
-function iosFilename(size: string, scale: string): string {
-  const s = size.replace('x', 'x');
-  return `Icon-App-${s}@${scale}.png`;
-}
-
-function scaleSize(size: number, scale: string): number {
-  const m = parseFloat(scale.replace('x', ''));
-  return Math.round(size * m);
-}
-
-const iOS_ENTRIES = [
-  { size: '20x20', idiom: 'iphone', scale: '2x' },
-  { size: '20x20', idiom: 'iphone', scale: '3x' },
-  { size: '29x29', idiom: 'iphone', scale: '1x' },
-  { size: '29x29', idiom: 'iphone', scale: '2x' },
-  { size: '29x29', idiom: 'iphone', scale: '3x' },
-  { size: '40x40', idiom: 'iphone', scale: '2x' },
-  { size: '40x40', idiom: 'iphone', scale: '3x' },
-  { size: '60x60', idiom: 'iphone', scale: '2x' },
-  { size: '60x60', idiom: 'iphone', scale: '3x' },
-  { size: '20x20', idiom: 'ipad', scale: '1x' },
-  { size: '20x20', idiom: 'ipad', scale: '2x' },
-  { size: '29x29', idiom: 'ipad', scale: '1x' },
-  { size: '29x29', idiom: 'ipad', scale: '2x' },
-  { size: '40x40', idiom: 'ipad', scale: '1x' },
-  { size: '40x40', idiom: 'ipad', scale: '2x' },
-  { size: '76x76', idiom: 'ipad', scale: '1x' },
-  { size: '76x76', idiom: 'ipad', scale: '2x' },
-  { size: '83.5x83.5', idiom: 'ipad', scale: '2x' },
-  { size: '1024x1024', idiom: 'ios-marketing', scale: '1x' },
+const ANDROID_FOREGROUND = [
+  { dir: 'mipmap-mdpi', size: 108 },
+  { dir: 'mipmap-hdpi', size: 162 },
+  { dir: 'mipmap-xhdpi', size: 216 },
+  { dir: 'mipmap-xxhdpi', size: 324 },
+  { dir: 'mipmap-xxxhdpi', size: 432 },
 ];
 
-export async function generateiOSIcons(
-  masterCanvas: HTMLCanvasElement,
-  onProgress: ProgressCallback
-): Promise<{ path: string; blob: Blob }[]> {
-  const results: { path: string; blob: Blob }[] = [];
-  const batch = (start: number, end: number) => {
-    const promises: Promise<void>[] = [];
-    for (let i = start; i < end && i < iOS_ENTRIES.length; i++) {
-      const e = iOS_ENTRIES[i];
-      const px = scaleSize(parseFloat(e.size.split('x')[0]), e.scale);
-      const fname = iosFilename(e.size, e.scale);
-      onProgress({ platform: 'ios', step: fname, done: i, total: iOS_ENTRIES.length + 3 });
-      promises.push(
-        new Promise<void>((resolve) => {
-          setTimeout(() => {
-            const canvas = document.createElement('canvas');
-            canvas.width = px;
-            canvas.height = px;
-            const ctx = canvas.getContext('2d')!;
-            ctx.drawImage(masterCanvas, 0, 0, px, px);
-            canvas.toBlob((blob) => {
-              results.push({ path: `iOS/AppIcon.appiconset/${fname}`, blob: blob! });
-              resolve();
-            }, 'image/png');
-          }, 0);
-        })
-      );
+const ANDROID_NOTIFICATION = [
+  { dir: 'drawable-ldpi', size: 18 },
+  { dir: 'drawable-mdpi', size: 24 },
+  { dir: 'drawable-hdpi', size: 36 },
+  { dir: 'drawable-xhdpi', size: 48 },
+  { dir: 'drawable-xxhdpi', size: 72 },
+  { dir: 'drawable-xxxhdpi', size: 96 },
+];
+
+const IOS_ENTRIES: { size: string; idiom: string; scale: string; filename: string }[] = [
+  { size: '20x20', idiom: 'iphone', scale: '2x', filename: 'Icon-App-20x20@2x.png' },
+  { size: '20x20', idiom: 'iphone', scale: '3x', filename: 'Icon-App-20x20@3x.png' },
+  { size: '29x29', idiom: 'iphone', scale: '1x', filename: 'Icon-App-29x29@1x.png' },
+  { size: '29x29', idiom: 'iphone', scale: '2x', filename: 'Icon-App-29x29@2x.png' },
+  { size: '29x29', idiom: 'iphone', scale: '3x', filename: 'Icon-App-29x29@3x.png' },
+  { size: '40x40', idiom: 'iphone', scale: '2x', filename: 'Icon-App-40x40@2x.png' },
+  { size: '40x40', idiom: 'iphone', scale: '3x', filename: 'Icon-App-40x40@3x.png' },
+  { size: '60x60', idiom: 'iphone', scale: '2x', filename: 'Icon-App-60x60@2x.png' },
+  { size: '60x60', idiom: 'iphone', scale: '3x', filename: 'Icon-App-60x60@3x.png' },
+  { size: '20x20', idiom: 'ipad', scale: '1x', filename: 'Icon-App-20x20@1x~ipad.png' },
+  { size: '20x20', idiom: 'ipad', scale: '2x', filename: 'Icon-App-20x20@2x~ipad.png' },
+  { size: '29x29', idiom: 'ipad', scale: '1x', filename: 'Icon-App-29x29@1x~ipad.png' },
+  { size: '29x29', idiom: 'ipad', scale: '2x', filename: 'Icon-App-29x29@2x~ipad.png' },
+  { size: '40x40', idiom: 'ipad', scale: '1x', filename: 'Icon-App-40x40@1x~ipad.png' },
+  { size: '40x40', idiom: 'ipad', scale: '2x', filename: 'Icon-App-40x40@2x~ipad.png' },
+  { size: '76x76', idiom: 'ipad', scale: '1x', filename: 'Icon-App-76x76@1x~ipad.png' },
+  { size: '76x76', idiom: 'ipad', scale: '2x', filename: 'Icon-App-76x76@2x~ipad.png' },
+  { size: '83.5x83.5', idiom: 'ipad', scale: '2x', filename: 'Icon-App-83.5x83.5@2x~ipad.png' },
+  { size: '1024x1024', idiom: 'ios-marketing', scale: '1x', filename: 'Icon-App-1024x1024@1x.png' },
+];
+
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('Could not encode canvas'));
+    }, 'image/png');
+  });
+}
+
+function buildConfig(
+  settings: RenderSettings,
+  size: number,
+  overrides: Partial<RenderConfig> = {}
+): RenderConfig {
+  return {
+    image: settings.image,
+    size,
+    padding: settings.padding,
+    rotation: settings.rotation,
+    backgroundColor: settings.backgroundColor,
+    backgroundType: settings.backgroundType,
+    gradientPreset: settings.gradientPreset,
+    iconShape: settings.iconShape,
+    fit: settings.fit,
+    transform: settings.transform,
+    adjustments: settings.adjustments,
+    effects: settings.effects,
+    ...overrides,
+  };
+}
+
+function settingsSignature(settings: RenderSettings): string {
+  const image = settings.image;
+  return JSON.stringify({
+    image: `${image.dataUrl?.length ?? 0}:${image.dataUrl?.slice(0, 32) ?? ''}:${image.width}x${image.height}`,
+    padding: settings.padding,
+    rotation: settings.rotation,
+    backgroundColor: settings.backgroundColor,
+    backgroundType: settings.backgroundType,
+    gradient: settings.gradientPreset,
+    shape: settings.iconShape,
+    fit: settings.fit,
+    transform: settings.transform,
+    adjustments: settings.adjustments,
+    effects: settings.effects,
+  });
+}
+
+const blobCache = new Map<string, Promise<Blob>>();
+
+function renderBlob(
+  settings: RenderSettings,
+  size: number,
+  overrides: Partial<RenderConfig> = {}
+): Promise<Blob> {
+  const key = `${settingsSignature(settings)}|${size}|${JSON.stringify(overrides)}`;
+  const cached = blobCache.get(key);
+  if (cached) return cached;
+
+  const promise = renderIcon(buildConfig(settings, size, overrides)).then(canvasToBlob);
+  blobCache.set(key, promise);
+  if (blobCache.size > 220) {
+    const oldest = blobCache.keys().next().value;
+    if (oldest) blobCache.delete(oldest);
+  }
+  return promise;
+}
+
+function opaqueOverride(settings: RenderSettings): string | null {
+  return settings.backgroundType === 'transparent' ? settings.backgroundColor : null;
+}
+
+function hexLuminance(hex: string): number {
+  const clean = hex.replace('#', '').trim();
+  const full = clean.length === 3
+    ? clean.split('').map((c) => c + c).join('')
+    : clean.padEnd(6, '0').slice(0, 6);
+  const channels = [0, 2, 4].map((offset) => {
+    const value = (parseInt(full.slice(offset, offset + 2), 16) || 0) / 255;
+    return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function cardTextColor(settings: RenderSettings): string {
+  const colors = settings.gradientPreset?.colors ?? [settings.backgroundColor, settings.backgroundColor];
+  const luminance = (hexLuminance(colors[0]) + hexLuminance(colors[1])) / 2;
+  return luminance > 0.45 ? '#0b0b12' : '#ffffff';
+}
+
+async function renderCard(
+  settings: RenderSettings,
+  width: number,
+  height: number,
+  appName?: string
+): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is not available');
+
+  // Background layer – cover-fit the same gradient/solid used by the icon.
+  const bgSize = 1024;
+  const background = await renderIcon(
+    buildConfig(settings, bgSize, {
+      includeArtwork: false,
+      includeShape: false,
+      includeEffects: false,
+      backgroundType: settings.backgroundType === 'transparent' ? 'solid' : settings.backgroundType,
+      backgroundOverride: settings.backgroundType === 'transparent' ? settings.backgroundColor : null,
+    })
+  );
+  const scale = Math.max(width / bgSize, height / bgSize);
+  const drawWidth = bgSize * scale;
+  const drawHeight = bgSize * scale;
+  ctx.drawImage(background, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+
+  const iconSize = Math.round(Math.min(width, height) * (appName ? 0.3 : 0.34));
+  const icon = await renderIcon(
+    buildConfig(settings, iconSize, { includeEffects: false })
+  );
+  const iconX = (width - iconSize) / 2;
+  const iconY = appName ? (height - iconSize) / 2 - height * 0.045 : (height - iconSize) / 2;
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = iconSize * 0.09;
+  ctx.shadowOffsetY = iconSize * 0.045;
+  ctx.drawImage(icon, iconX, iconY);
+  ctx.restore();
+
+  if (appName) {
+    const fontSize = Math.round(Math.min(width, height) * 0.062);
+    ctx.font = `600 ${fontSize}px "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = cardTextColor(settings);
+    ctx.fillText(appName, width / 2, iconY + iconSize + height * 0.055);
+  }
+
+  return canvasToBlob(canvas);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Platform plans                                                             */
+/* -------------------------------------------------------------------------- */
+
+function androidPlan(settings: RenderSettings): { files: ExportFileJob[]; texts: ExportText[] } {
+  const files: ExportFileJob[] = [];
+
+  for (const density of ANDROID_LEGACY) {
+    files.push({
+      path: `android/${density.dir}/ic_launcher.png`,
+      render: () => renderBlob(settings, density.size),
+    });
+    files.push({
+      path: `android/${density.dir}/ic_launcher_round.png`,
+      render: () => renderBlob(settings, density.size, { iconShape: 'circle' }),
+    });
+  }
+
+  for (const density of ANDROID_FOREGROUND) {
+    files.push({
+      path: `android/${density.dir}/ic_launcher_foreground.png`,
+      render: () =>
+        renderBlob(settings, density.size, {
+          includeBackground: false,
+          includeShape: false,
+          includeEffects: false,
+          extraPadding: 19.5,
+        }),
+    });
+  }
+
+  for (const density of ANDROID_NOTIFICATION) {
+    files.push({
+      path: `android/${density.dir}/ic_notification.png`,
+      render: () =>
+        renderBlob(settings, density.size, {
+          includeBackground: false,
+          includeShape: false,
+          includeEffects: false,
+          monochromeColor: '#ffffff',
+        }),
+    });
+  }
+
+  files.push({
+    path: 'android/playstore-icon.png',
+    render: () => renderBlob(settings, 512, { iconShape: 'square' }),
+  });
+  files.push({
+    path: 'android/ic_launcher-web.png',
+    render: () => renderBlob(settings, 512),
+  });
+  files.push({
+    path: 'android/mipmap-anydpi-v26/ic_launcher_background.png',
+    render: () =>
+      renderBlob(settings, 432, {
+        includeArtwork: false,
+        includeShape: false,
+        includeEffects: false,
+        backgroundOverride:
+          settings.backgroundType === 'transparent' ? '#00000000' : null,
+      }),
+  });
+  files.push({
+    path: 'android/mipmap-anydpi-v26/ic_launcher_monochrome.png',
+    render: () =>
+      renderBlob(settings, 432, {
+        includeBackground: false,
+        includeShape: false,
+        includeEffects: false,
+        extraPadding: 19.5,
+        monochromeColor: '#ffffff',
+      }),
+  });
+
+  const adaptiveIcon = (withMonochrome: boolean) => `<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>${
+      withMonochrome
+        ? '\n    <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>'
+        : ''
     }
-    return Promise.all(promises);
-  };
-  await batch(0, 7);
-  await batch(7, iOS_ENTRIES.length);
+</adaptive-icon>`;
 
-  // iTunesArtwork at root level
-  const itunesSizes = [
-    { file: 'iTunesArtwork@1x.png', size: 512 },
-    { file: 'iTunesArtwork@2x.png', size: 1024 },
-    { file: 'iTunesArtwork@3x.png', size: 3072 },
+  const texts: ExportText[] = [
+    {
+      path: 'android/mipmap-anydpi-v26/ic_launcher.xml',
+      content: adaptiveIcon(false),
+    },
+    {
+      path: 'android/mipmap-anydpi-v26/ic_launcher_round.xml',
+      content: adaptiveIcon(false),
+    },
+    {
+      path: 'android/mipmap-anydpi-v33/ic_launcher.xml',
+      content: adaptiveIcon(true),
+    },
+    {
+      path: 'android/mipmap-anydpi-v33/ic_launcher_round.xml',
+      content: adaptiveIcon(true),
+    },
+    {
+      path: 'android/values/ic_launcher_background.xml',
+      content: `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">${settings.backgroundColor}</color>
+</resources>`,
+    },
   ];
-  for (let i = 0; i < itunesSizes.length; i++) {
-    const s = itunesSizes[i];
-    const idx = iOS_ENTRIES.length + i;
-    onProgress({ platform: 'ios', step: s.file, done: idx, total: iOS_ENTRIES.length + 3 });
-    const canvas = document.createElement('canvas');
-    canvas.width = s.size;
-    canvas.height = s.size;
-    const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(masterCanvas, 0, 0, s.size, s.size);
-    const blob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), 'image/png'));
-    results.push({ path: `iOS/${s.file}`, blob });
-  }
 
-  return results;
+  return { files, texts };
 }
 
-export function generateiOSContentsJson(): { path: string; content: string } {
-  const images = iOS_ENTRIES.map((e) => ({
-    size: e.size,
-    idiom: e.idiom,
-    filename: iosFilename(e.size, e.scale),
-    scale: e.scale,
-  }));
-  images.push({ size: '1024x1024', idiom: 'ios-marketing', filename: 'ItunesArtwork@2x.png', scale: '1x' });
+function iosPlan(settings: RenderSettings): { files: ExportFileJob[]; texts: ExportText[] } {
+  const files: ExportFileJob[] = IOS_ENTRIES.map((entry) => {
+    const pixels = Math.round(parseFloat(entry.size) * parseFloat(entry.scale));
+    return {
+      path: `iOS/AppIcon.appiconset/${entry.filename}`,
+      render: () =>
+        renderBlob(settings, pixels, {
+          iconShape: 'square',
+          includeEffects: false,
+          backgroundOverride: opaqueOverride(settings),
+        }),
+    };
+  });
+
   const contents = {
-    images,
-    info: { author: 'CloudIcon Studio', version: 1 },
+    images: IOS_ENTRIES.map((entry) => ({
+      size: entry.size,
+      idiom: entry.idiom,
+      filename: entry.filename,
+      scale: entry.scale,
+    })),
+    info: { author: 'xcode', version: 1 },
   };
-  return { path: 'iOS/AppIcon.appiconset/Contents.json', content: JSON.stringify(contents, null, 2) };
-}
 
-export async function generateWebIcons(
-  masterCanvas: HTMLCanvasElement,
-  onProgress: ProgressCallback
-): Promise<{ path: string; blob: Blob }[]> {
-  const sizes = [
-    { file: 'favicon-16x16.png', size: 16 },
-    { file: 'favicon-32x32.png', size: 32 },
-    { file: 'favicon-48x48.png', size: 48 },
-    { file: 'apple-touch-icon.png', size: 180 },
-    { file: 'android-chrome-192x192.png', size: 192 },
-    { file: 'android-chrome-512x512.png', size: 512 },
-  ];
-
-  const results: { path: string; blob: Blob }[] = [];
-  for (let i = 0; i < sizes.length; i++) {
-    const s = sizes[i];
-    onProgress({ platform: 'web', step: s.file, done: i, total: sizes.length });
-    const blob = await resizeWithPica(masterCanvas, s.size, s.size);
-    results.push({ path: `Web/${s.file}`, blob });
-  }
-
-  return results;
-}
-
-export function generateWebManifest(): { path: string; content: string } {
-  const manifest = {
-    name: 'CloudIcon Studio App',
-    short_name: 'CloudIcon',
-    icons: [
-      { src: 'android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
-      { src: 'android-chrome-512x512.png', sizes: '512x512', type: 'image/png' },
+  return {
+    files,
+    texts: [
+      {
+        path: 'iOS/AppIcon.appiconset/Contents.json',
+        content: JSON.stringify(contents, null, 2),
+      },
     ],
-    theme_color: '#7C3AED',
-    background_color: '#09090B',
-    display: 'standalone',
   };
-  return { path: 'Web/site.webmanifest', content: JSON.stringify(manifest, null, 2) };
 }
 
-export function generateBrowserConfig(): { path: string; content: string } {
+function webManifest(settings: RenderSettings, appName: string): ExportText {
+  const name = appName || 'CloudIcon';
+  const shortName = name.length > 12 ? name.slice(0, 12) : name;
+  const manifest = {
+    name,
+    short_name: shortName,
+    description: `${name} — generated with CloudIcon Studio`,
+    start_url: '/',
+    display: 'standalone',
+    background_color: settings.backgroundColor,
+    theme_color: settings.backgroundColor,
+    icons: [
+      { src: 'android-chrome-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: 'android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: 'maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ],
+  };
+  return { path: 'web/site.webmanifest', content: JSON.stringify(manifest, null, 2) };
+}
+
+function browserConfig(settings: RenderSettings): ExportText {
   const xml = `<?xml version="1.0" encoding="utf-8"?>
 <browserconfig>
     <msapplication>
         <tile>
             <square150x150logo src="mstile-150x150.png"/>
-            <TileColor>#7C3AED</TileColor>
+            <TileColor>${settings.backgroundColor}</TileColor>
         </tile>
     </msapplication>
 </browserconfig>`;
-  return { path: 'Web/browserconfig.xml', content: xml };
+  return { path: 'web/browserconfig.xml', content: xml };
 }
 
-export async function generateDesktopIcons(
-  masterCanvas: HTMLCanvasElement,
-  onProgress: ProgressCallback
-): Promise<{ path: string; blob: Blob }[]> {
-  const sizes = [
-    { file: 'windows-tile.png', size: 150 },
-    { file: 'macos-dock.png', size: 128 },
-    { file: 'linux-launcher.png', size: 256 },
-  ];
-
-  const results: { path: string; blob: Blob }[] = [];
-  for (let i = 0; i < sizes.length; i++) {
-    const s = sizes[i];
-    onProgress({ platform: 'desktop', step: s.file, done: i, total: sizes.length });
-    const blob = await resizeWithPica(masterCanvas, s.size, s.size);
-    results.push({ path: `Desktop/${s.file}`, blob });
-  }
-
-  return results;
-}
-
-export type ExportPreset = 'full' | 'android' | 'ios' | 'web' | 'pwa' | 'desktop' | 'minimal';
-
-export const EXPORT_PRESETS: Record<ExportPreset, { label: string; description: string; icon: string }> = {
-  full: { label: 'Full Pack', description: 'All platforms + all sizes', icon: 'Package' },
-  android: { label: 'Android Only', description: 'Mipmap, adaptive, monochrome', icon: 'Smartphone' },
-  ios: { label: 'iOS Only', description: 'All Apple sizes + Contents.json', icon: 'Apple' },
-  web: { label: 'Web Only', description: 'Favicons, PWA icons, manifest', icon: 'Globe' },
-  pwa: { label: 'PWA Pack', description: 'PWA icons, manifest, browser config', icon: 'Monitor' },
-  desktop: { label: 'Desktop Only', description: 'Windows, macOS, Linux icons', icon: 'Monitor' },
-  minimal: { label: 'Minimal Pack', description: 'Essential sizes only', icon: 'FileDown' },
-};
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-export async function runExportPreset(
-  preset: ExportPreset,
-  image: ImageInfo,
-  padding: number,
-  backgroundColor: string,
-  rotation: number,
-  backgroundType: BackgroundType = 'solid',
-  gradientPreset: GradientPreset | null = null,
-  iconShape: IconShape = 'squircle',
-  onProgress: (task: { platform: string; step: string; done: number; total: number }) => void
-): Promise<{ files: { path: string; blob: Blob }[]; texts: { path: string; content: string }[] }> {
-  const masterCanvas = await renderMasterCanvas(image, padding, backgroundColor, rotation, backgroundType, gradientPreset, iconShape);
-  const files: { path: string; blob: Blob }[] = [];
-  const texts: { path: string; content: string }[] = [];
-
-  const notify = (platform: string, step: string, done: number, total: number) => {
-    onProgress({ platform, step, done, total });
+function webPlan(settings: RenderSettings, appName: string): { files: ExportFileJob[]; texts: ExportText[] } {
+  const squareOpaque = {
+    iconShape: 'square' as const,
+    includeEffects: false,
+    backgroundOverride: opaqueOverride(settings),
   };
 
-  if (preset === 'full' || preset === 'android') {
-    const androidFiles = await generateAndroidIcons(masterCanvas, image, padding, rotation, (t) => notify(t.platform, t.step, t.done, t.total));
-    files.push(...androidFiles);
+  const files: ExportFileJob[] = [
+    { path: 'web/favicon-16x16.png', render: () => renderBlob(settings, 16) },
+    { path: 'web/favicon-32x32.png', render: () => renderBlob(settings, 32) },
+    { path: 'web/favicon-48x48.png', render: () => renderBlob(settings, 48) },
+    { path: 'web/apple-touch-icon.png', render: () => renderBlob(settings, 180, squareOpaque) },
+    { path: 'web/android-chrome-192x192.png', render: () => renderBlob(settings, 192, squareOpaque) },
+    { path: 'web/android-chrome-512x512.png', render: () => renderBlob(settings, 512, squareOpaque) },
+    {
+      path: 'web/maskable-512x512.png',
+      render: () =>
+        renderBlob(settings, 512, {
+          ...squareOpaque,
+          extraPadding: 10,
+        }),
+    },
+    { path: 'web/mstile-150x150.png', render: () => renderBlob(settings, 150, squareOpaque) },
+    {
+      path: 'web/favicon.ico',
+      render: async () => {
+        const images = await Promise.all(
+          [16, 32, 48, 64].map(async (size) => ({
+            size,
+            blob: await renderBlob(settings, size),
+          }))
+        );
+        return encodeIco(images);
+      },
+    },
+    {
+      path: 'web/safari-pinned-tab.svg',
+      render: async () => {
+        const silhouette = await renderBlob(settings, 512, {
+          includeBackground: false,
+          includeShape: false,
+          includeEffects: false,
+          monochromeColor: '#000000',
+        });
+        const base64 = await blobToBase64(silhouette);
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><image width="512" height="512" href="data:image/png;base64,${base64}"/></svg>`;
+        return new Blob([svg], { type: 'image/svg+xml' });
+      },
+    },
+  ];
 
-    const xmls = generateAdaptiveIconXmls();
-    texts.push(...xmls);
+  return {
+    files,
+    texts: [webManifest(settings, appName), browserConfig(settings)],
+  };
+}
 
-    texts.push(generateBackgroundColorXml(backgroundColor));
+function pwaPlan(settings: RenderSettings, appName: string): { files: ExportFileJob[]; texts: ExportText[] } {
+  const squareOpaque = {
+    iconShape: 'square' as const,
+    includeEffects: false,
+    backgroundOverride: opaqueOverride(settings),
+  };
+  const files: ExportFileJob[] = [
+    { path: 'pwa/android-chrome-192x192.png', render: () => renderBlob(settings, 192, squareOpaque) },
+    { path: 'pwa/android-chrome-512x512.png', render: () => renderBlob(settings, 512, squareOpaque) },
+    {
+      path: 'pwa/maskable-512x512.png',
+      render: () => renderBlob(settings, 512, { ...squareOpaque, extraPadding: 10 }),
+    },
+    { path: 'pwa/apple-touch-icon.png', render: () => renderBlob(settings, 180, squareOpaque) },
+  ];
+  return {
+    files,
+    texts: [{ ...webManifest(settings, appName), path: 'pwa/site.webmanifest' }],
+  };
+}
 
-    const mono = await generateAndroidMonochrome(masterCanvas);
-    files.push(mono);
+function desktopPlan(settings: RenderSettings): { files: ExportFileJob[]; texts: ExportText[] } {
+  const windowsSizes = [16, 24, 32, 48, 64, 128, 256];
+  const linuxSizes = [16, 32, 48, 64, 128, 256, 512];
+  const files: ExportFileJob[] = [];
+
+  for (const size of windowsSizes) {
+    files.push({
+      path: `desktop/windows/windows-tile-${size}.png`,
+      render: () => renderBlob(settings, size),
+    });
+  }
+  files.push({
+    path: 'desktop/windows/windows-tile.png',
+    render: () => renderBlob(settings, 150),
+  });
+  files.push({
+    path: 'desktop/windows/app.ico',
+    render: async () => {
+      const images = await Promise.all(
+        [16, 24, 32, 48, 64, 128, 256].map(async (size) => ({
+          size,
+          blob: await renderBlob(settings, size),
+        }))
+      );
+      return encodeIco(images);
+    },
+  });
+  files.push({
+    path: 'desktop/macos/app.icns',
+    render: async () => {
+      const images = await Promise.all(
+        [16, 32, 64, 128, 256, 512, 1024].map(async (size) => ({
+          size,
+          blob: await renderBlob(settings, size),
+        }))
+      );
+      return encodeIcns(images);
+    },
+  });
+  for (const size of linuxSizes) {
+    files.push({
+      path: `desktop/linux/hicolor/${size}x${size}/apps/cloudicon.png`,
+      render: () => renderBlob(settings, size),
+    });
   }
 
-  if (preset === 'full' || preset === 'ios') {
-    const iosFiles = await generateiOSIcons(masterCanvas, (t) => notify(t.platform, t.step, t.done, t.total));
-    files.push(...iosFiles);
-    texts.push(generateiOSContentsJson());
-  }
+  return { files, texts: [] };
+}
 
-  if (preset === 'full' || preset === 'web' || preset === 'pwa') {
-    const webFiles = await generateWebIcons(masterCanvas, (t) => notify(t.platform, t.step, t.done, t.total));
-    files.push(...webFiles);
-    texts.push(generateWebManifest());
-    texts.push(generateBrowserConfig());
-  }
+function splashPlan(settings: RenderSettings): { files: ExportFileJob[]; texts: ExportText[] } {
+  return {
+    files: SPLASH_SIZES.map((splash) => ({
+      path: `splash/${splash.name}.png`,
+      render: () => renderCard(settings, splash.width, splash.height),
+    })),
+    texts: [],
+  };
+}
 
-  if (preset === 'full' || preset === 'desktop') {
-    const desktopFiles = await generateDesktopIcons(masterCanvas, (t) => notify(t.platform, t.step, t.done, t.total));
-    files.push(...desktopFiles);
-  }
+function socialPlan(
+  settings: RenderSettings,
+  appName: string
+): { files: ExportFileJob[]; texts: ExportText[] } {
+  return {
+    files: SOCIAL_SIZES.map((social) => ({
+      path: `social/${social.name}.png`,
+      render: () => renderCard(settings, social.width, social.height, appName),
+    })),
+    texts: [],
+  };
+}
 
+function minimalPlan(settings: RenderSettings): { files: ExportFileJob[]; texts: ExportText[] } {
+  const squareOpaque = {
+    iconShape: 'square' as const,
+    includeEffects: false,
+    backgroundOverride: opaqueOverride(settings),
+  };
+  return {
+    files: [
+      { path: 'minimal/favicon-32x32.png', render: () => renderBlob(settings, 32) },
+      { path: 'minimal/apple-touch-icon.png', render: () => renderBlob(settings, 180, squareOpaque) },
+      { path: 'minimal/android-chrome-192x192.png', render: () => renderBlob(settings, 192, squareOpaque) },
+      { path: 'minimal/android-chrome-512x512.png', render: () => renderBlob(settings, 512, squareOpaque) },
+      { path: 'minimal/app-icon-1024.png', render: () => renderBlob(settings, 1024, squareOpaque) },
+      {
+        path: 'minimal/favicon.ico',
+        render: async () => {
+          const images = await Promise.all(
+            [16, 32, 48].map(async (size) => ({
+              size,
+              blob: await renderBlob(settings, size),
+            }))
+          );
+          return encodeIco(images);
+        },
+      },
+    ],
+    texts: [],
+  };
+}
+
+/** Build the complete job list without rendering anything. */
+export function buildExportPlan(
+  preset: ExportPreset,
+  settings: RenderSettings,
+  appName: string
+): ExportPlan {
+  const files: ExportFileJob[] = [];
+  const texts: ExportText[] = [];
+  const include = (platform: ExportPreset) => preset === 'full' || preset === platform;
+
+  if (include('android')) {
+    const plan = androidPlan(settings);
+    files.push(...plan.files);
+    texts.push(...plan.texts);
+  }
+  if (include('ios')) {
+    const plan = iosPlan(settings);
+    files.push(...plan.files);
+    texts.push(...plan.texts);
+  }
+  if (include('web')) {
+    const plan = webPlan(settings, appName);
+    files.push(...plan.files);
+    texts.push(...plan.texts);
+  }
+  if (include('pwa')) {
+    const plan = pwaPlan(settings, appName);
+    files.push(...plan.files);
+    texts.push(...plan.texts);
+  }
+  if (include('desktop')) {
+    const plan = desktopPlan(settings);
+    files.push(...plan.files);
+    texts.push(...plan.texts);
+  }
+  if (include('splash')) {
+    const plan = splashPlan(settings);
+    files.push(...plan.files);
+    texts.push(...plan.texts);
+  }
+  if (include('social')) {
+    const plan = socialPlan(settings, appName);
+    files.push(...plan.files);
+    texts.push(...plan.texts);
+  }
   if (preset === 'minimal') {
-    const essentials = [
-      { file: 'favicon-32x32.png', size: 32 },
-      { file: 'apple-touch-icon.png', size: 180 },
-      { file: 'android-chrome-192x192.png', size: 192 },
-      { file: 'android-chrome-512x512.png', size: 512 },
-      { file: 'AppIcon-1024.png', size: 1024 },
-    ];
-    for (let i = 0; i < essentials.length; i++) {
-      const s = essentials[i];
-      notify('web', s.file, i, essentials.length);
-      const blob = await resizeWithPica(masterCanvas, s.size, s.size);
-      files.push({ path: `Minimal/${s.file}`, blob });
-    }
+    const plan = minimalPlan(settings);
+    files.push(...plan.files);
+    texts.push(...plan.texts);
   }
 
-  return { files, texts };
+  return { files, texts, total: files.length + texts.length };
+}
+
+function platformFromPath(path: string): string {
+  if (path.startsWith('android')) return 'Android';
+  if (path.startsWith('iOS')) return 'iOS';
+  if (path.startsWith('web')) return 'Web';
+  if (path.startsWith('pwa')) return 'PWA';
+  if (path.startsWith('desktop')) return 'Desktop';
+  if (path.startsWith('splash')) return 'Splash';
+  if (path.startsWith('social')) return 'Social';
+  if (path.startsWith('minimal')) return 'Minimal';
+  return 'Assets';
+}
+
+/** Execute a plan and report a single, accurate global progress counter. */
+export async function executeExportPlan(
+  plan: ExportPlan,
+  onProgress: ProgressCallback
+): Promise<{ files: ExportFile[]; texts: ExportText[]; total: number }> {
+  const files: ExportFile[] = [];
+  let done = 0;
+
+  for (const job of plan.files) {
+    onProgress({
+      platform: platformFromPath(job.path),
+      step: job.path,
+      done,
+      total: plan.total,
+    });
+    const blob = await job.render();
+    files.push({ path: job.path, blob });
+    done++;
+    onProgress({
+      platform: platformFromPath(job.path),
+      step: job.path,
+      done,
+      total: plan.total,
+    });
+  }
+
+  for (const text of plan.texts) {
+    done++;
+    onProgress({
+      platform: 'Manifests',
+      step: text.path,
+      done,
+      total: plan.total,
+    });
+  }
+
+  return { files, texts: plan.texts, total: plan.total };
+}
+
+/** Rough but honest estimate used by the export dialog. */
+export async function estimateExport(
+  preset: ExportPreset,
+  settings: RenderSettings,
+  appName: string
+): Promise<{ size: number; fileCount: number }> {
+  const plan = buildExportPlan(preset, settings, appName);
+  let sampleSize = 28000;
+  try {
+    sampleSize = (await renderBlob(settings, 256)).size;
+  } catch {
+    // Fall back to a conservative average.
+  }
+  // Large iOS/desktop assets dominate; use an area-weighted approximation.
+  const weighted = plan.files.reduce((sum, job) => {
+    const match = job.path.match(/(\d{2,4})x\1|\/windows-tile-(\d+)|\/favicon-(\d+)|-(\d{2,4})\.png/);
+    const size = match ? Number(match[1] || match[2] || match[3] || match[4]) : 256;
+    const areaFactor = Math.max(0.12, Math.min(6, (size / 256) ** 2));
+    return sum + sampleSize * areaFactor;
+  }, 0);
+  const textSize = plan.texts.reduce((sum, text) => sum + text.content.length, 0);
+  return {
+    size: Math.round(weighted * 0.92 + textSize + 2048),
+    fileCount: plan.total,
+  };
 }

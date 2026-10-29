@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -17,13 +17,25 @@ import { cn } from '@/lib/utils';
 import type { UploadStatus } from '@/types';
 
 interface UploadBoxProps {
-  onUpload: (file: File, dataUrl: string) => void;
+  onUpload: (file: File, dataUrl: string) => void | Promise<void>;
 }
 
 export function UploadBox({ onUpload }: UploadBoxProps) {
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+
+  // Returning via the browser back button can restore a "success" upload box
+  // from bfcache, which would leave its file input disabled.
+  useEffect(() => {
+    const reset = () => {
+      setStatus('idle');
+      setProgress(0);
+      setError(null);
+    };
+    window.addEventListener('pageshow', reset);
+    return () => window.removeEventListener('pageshow', reset);
+  }, []);
 
   const simulateProgress = useCallback(() => {
     setProgress(0);
@@ -67,18 +79,20 @@ export function UploadBox({ onUpload }: UploadBoxProps) {
           setProgress(Math.round((e.loaded / e.total) * 90));
         }
       };
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         clearInterval(progressInterval);
         setProgress(100);
         setStatus('processing');
-
-        setTimeout(() => {
-          const dataUrl = e.target?.result as string;
+        const dataUrl = e.target?.result as string;
+        try {
+          // Keep the processing state until normalization and persistence are
+          // done. Large images used to look "complete" while the app waited.
+          await onUpload(file, dataUrl);
           setStatus('success');
-          setTimeout(() => {
-            onUpload(file, dataUrl);
-          }, 400);
-        }, 300);
+        } catch {
+          setError('Could not prepare that image. Try another file.');
+          setStatus('idle');
+        }
       };
       reader.onerror = () => {
         clearInterval(progressInterval);

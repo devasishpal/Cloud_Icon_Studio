@@ -29,10 +29,10 @@ export function RightPanel({ className }: RightPanelProps) {
   if (!image.dataUrl) return null;
 
   return (
-    <div className={className ?? 'border-l border-border/40 bg-background/95 hidden lg:flex lg:w-64 xl:w-80 flex-col overflow-hidden'}>
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/30 bg-muted/5 shrink-0">
-        <Eye className="size-3 text-muted-foreground/60" />
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">Preview</span>
+    <div className={className ?? 'border-l border-white/[0.08] bg-[#1e1f24] hidden lg:flex lg:w-64 xl:w-80 flex-col overflow-hidden'}>
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-white/[0.07] bg-[#24252b] px-4">
+        <Eye className="size-3 text-zinc-500" />
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Preview</span>
         <div className="ml-auto flex gap-0.5">
           {previewTabs.map(({ id, label, icon: Icon }) => (
             <button
@@ -41,8 +41,8 @@ export function RightPanel({ className }: RightPanelProps) {
               className={cn(
                 'rounded-md p-1.5 text-[10px] font-medium transition-all',
                 previewTab === id
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground/50 hover:text-foreground hover:bg-muted/30'
+                  ? 'bg-primary/20 text-[#9bb7ff]'
+                  : 'text-zinc-500 hover:text-zinc-100 hover:bg-white/[0.06]'
               )}
               title={label}
             >

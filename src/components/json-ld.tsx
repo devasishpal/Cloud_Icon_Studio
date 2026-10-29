@@ -62,7 +62,7 @@ export function JsonLd() {
     description: 'Free online app icon generator that runs entirely in your browser. Generate production-ready launcher icons, favicons, adaptive icons, and complete icon packs for Android, iOS, Web, and Desktop.',
     email: 'support@typely.in',
     image: `${base}/og-image.png`,
-    logo: `${base}/icon.png`,
+    logo: `${base}/icon-512.png`,
     sameAs: [
       'https://github.com/cloudicon-studio',
     ],

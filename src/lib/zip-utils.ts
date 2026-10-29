@@ -2,208 +2,163 @@
 
 import JSZip from 'jszip';
 
-export interface ZipEntry {
-  path: string;
-  type: 'file' | 'folder';
-  size?: number;
-  children?: ZipEntry[];
-}
-
 export interface ExportOptions {
   compressionLevel: 'low' | 'balanced' | 'maximum';
   exportName: string;
   includeREADME: boolean;
   includeManifests: boolean;
   includeSource: boolean;
+  source?: { name: string; blob: Blob } | null;
+  appName?: string;
+  preset?: string;
+  backgroundColor?: string;
+  transparent?: boolean;
 }
 
-export function generateReadme(): string {
+const PRESET_LABELS: Record<string, string> = {
+  full: 'Full Pack',
+  android: 'Android',
+  ios: 'iOS',
+  web: 'Web',
+  pwa: 'PWA',
+  desktop: 'Desktop',
+  splash: 'Splash Screens',
+  social: 'Social Cards',
+  minimal: 'Minimal',
+};
+
+export function generateReadme(options: ExportOptions): string {
   const date = new Date().toLocaleDateString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   });
+  const appName = options.appName || 'Your App';
+  const preset = options.preset ? (PRESET_LABELS[options.preset] ?? options.preset) : 'Custom';
+  const transparentNote = options.transparent
+    ? '\n  NOTE: Transparent backgrounds were flattened onto your chosen background\n  colour for iOS and PWA assets, because those platforms require opaque icons.\n'
+    : '';
 
   return `====================================================================
-  CloudIcon Studio - Generated Icon Pack
-  Generated: ${date}
+  ${appName} — Icon Pack
+  Generated with CloudIcon Studio on ${date}
 ====================================================================
 
-  Thank you for using CloudIcon Studio!
-
-  This package contains platform-specific app icons generated from
-  your source artwork.
-
-====================================================================
-  INCLUDED ASSETS
-====================================================================
-
-  The following platforms and sizes are included in this pack:
-
-  ANDROID:
-    - mipmap-mdpi (48x48)
-    - mipmap-hdpi (72x72)
-    - mipmap-xhdpi (96x96)
-    - mipmap-xxhdpi (144x144)
-    - mipmap-xxxhdpi (192x192)
-    - mipmap-anydpi-v26 (Adaptive Icons)
-    - Play Store (512x512)
-    - Notification (24x24)
-
-  iOS:
-    - iPhone Notification (20pt, 40pt)
-    - iPhone Settings (29pt, 58pt)
-    - iPhone Spotlight (40pt, 80pt)
-    - iPhone App (60pt, 120pt)
-    - iPad Settings (29pt, 58pt)
-    - iPad Spotlight (40pt, 80pt)
-    - iPad App (76pt, 152pt)
-    - iPad Pro App (83.5pt, 167pt)
-    - App Store (1024pt)
-
-  WEB:
-    - Favicon (16x16, 32x32, 48x48)
-    - Apple Touch Icon (180x180)
-    - Android Chrome (192x192, 512x512)
-    - Web App Manifest
-
-  DESKTOP:
-    - Windows Tile (150x150)
-    - macOS Dock (128x128)
-    - Linux Launcher (256x256)
+  Preset : ${preset}
+  Files  : see the folder structure below
+${transparentNote}
+  Every asset in this archive was rendered from the same editor canvas,
+  so colours, padding, rotation, filters and effects match exactly.
 
 ====================================================================
-  USAGE INSTRUCTIONS
+  WHAT'S INSIDE
 ====================================================================
 
-  ANDROID SETUP:
-    1. Copy the entire 'Android' folder into your project's 'res/' directory
-    2. Android Studio will automatically detect the resources
-    3. For Adaptive Icons (Android 8+):
-       - ic_launcher_foreground.png and ic_launcher_background.png
-         are already placed in mipmap-anydpi-v26
-    4. The ic_launcher.xml references the adaptive icon components
+  ANDROID
+    mipmap-ldpi … mipmap-xxxhdpi
+      ic_launcher.png              Legacy launcher icon
+      ic_launcher_round.png        Legacy round icon
+      ic_launcher_foreground.png   Adaptive foreground (safe-zone aware)
+    mipmap-anydpi-v26
+      ic_launcher.xml              Adaptive icon (API 26+)
+      ic_launcher_round.xml
+      ic_launcher_background.png
+      ic_launcher_monochrome.png
+    mipmap-anydpi-v33
+      ic_launcher.xml              Adaptive icon with Material You monochrome
+      ic_launcher_round.xml
+    drawable-*dpi
+      ic_notification.png          Status-bar notification icon
+    values/ic_launcher_background.xml
+    playstore-icon.png             512×512 Play Store listing icon
+    ic_launcher-web.png
 
-  iOS SETUP:
-    1. Open your Xcode project
-    2. Open Assets.xcassets and select AppIcon
-    3. Drag the iOS folder contents into the appropriate slots
-    4. Or: replace the Contents.json and all images in your
-       AppIcon.appiconset folder
+  iOS
+    AppIcon.appiconset/
+      Icon-App-*.png               Every iPhone / iPad / App Store size
+      Contents.json                Asset-catalog manifest
 
-  WEB SETUP:
-    FAVICONS:
-      - Place favicon files in your website root directory
-      - Add to your HTML <head>:
-        <link rel="icon" type="image/png" sizes="32x32"
-              href="/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16"
-              href="/favicon-16x16.png">
-        <link rel="apple-touch-icon" sizes="180x180"
-              href="/apple-touch-icon.png">
+  WEB
+    favicon-16x16.png
+    favicon-32x32.png
+    favicon-48x48.png
+    favicon.ico                    Multi-resolution 16/32/48/64
+    apple-touch-icon.png
+    android-chrome-192x192.png
+    android-chrome-512x512.png
+    maskable-512x512.png           Safe-zone aware maskable icon
+    mstile-150x150.png
+    safari-pinned-tab.svg
+    site.webmanifest
+    browserconfig.xml
 
-    PWA / MANIFEST:
-      - Place android-chrome icons in your public directory
-      - Reference site.webmanifest in your HTML:
-        <link rel="manifest" href="/site.webmanifest">
+  PWA
+    android-chrome-192x192.png
+    android-chrome-512x512.png
+    maskable-512x512.png
+    apple-touch-icon.png
+    site.webmanifest
 
-  DESKTOP SETUP:
-    WINDOWS:
-      - Use windows-tile.png for taskbar and start menu shortcuts
-    macOS:
-      - Use macos-dock.png for dock icons
-    LINUX:
-      - Use linux-launcher.png for .desktop file icons
+  DESKTOP
+    windows/windows-tile-*.png
+    windows/app.ico                Multi-resolution Windows icon
+    macos/app.icns                 Multi-resolution macOS icon
+    linux/hicolor/*/apps/cloudicon.png
+
+  SPLASH / SOCIAL
+    splash/splash-*.png            iPhone & iPad launch screens
+    social/og-image.png            1200×630 Open Graph card
+    social/twitter-card.png        1200×600 Twitter card
+    social/social-square.png       1080×1080 social post
 
 ====================================================================
-  GENERATED BY
+  INSTALLATION
 ====================================================================
 
-  CloudIcon Studio - https://cloudicon.vercel.app
-  All processing done locally in your browser.
-  No data uploaded to any server.
+  ANDROID
+    1. Copy the 'android' folder into app/src/main/res/
+    2. Rebuild the project. Adaptive icons are picked up automatically.
+    3. If your app uses a custom adaptive icon, keep the existing
+       mipmap-anydpi-v26 XML and point its layers at these PNGs.
 
+  iOS / iPadOS
+    1. Open Assets.xcassets in Xcode and select AppIcon.
+    2. Drag AppIcon.appiconset into the asset catalog.
+    3. Make sure 'Contents.json' is included.
+
+  WEB
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="${options.backgroundColor ?? '#7C3AED'}">
+
+  WINDOWS
+    Use windows/app.ico for shortcuts, taskbar pins and installers.
+
+  macOS
+    Use macos/app.icns in your .app bundle (CFBundleIconFile).
+
+  LINUX
+    Install the PNGs into /usr/share/icons/hicolor/ and reference the
+    icon name from your .desktop file (Icon=cloudicon).
+
+====================================================================
+  CloudIcon Studio — https://github.com/devasishpal/Cloud_Icon_Studio
+  All processing happens locally in your browser. No uploads.
 ====================================================================`;
-}
-
-export function generateFolderStructure(
-  preset: string,
-  includeManifests: boolean
-): ZipEntry[] {
-  const structure: ZipEntry[] = [
-    {
-      path: 'Android', type: 'folder', children: [
-        { path: 'Android/mipmap-mdpi', type: 'folder' },
-        { path: 'Android/mipmap-hdpi', type: 'folder' },
-        { path: 'Android/mipmap-xhdpi', type: 'folder' },
-        { path: 'Android/mipmap-xxhdpi', type: 'folder' },
-        { path: 'Android/mipmap-xxxhdpi', type: 'folder' },
-        { path: 'Android/mipmap-anydpi-v26', type: 'folder' },
-        { path: 'Android/playstore', type: 'folder' },
-        { path: 'Android/notification', type: 'folder' },
-      ],
-    },
-    {
-      path: 'iOS', type: 'folder', children: [
-        { path: 'iOS/AppIcon-20.png', type: 'file', size: 20 },
-        { path: 'iOS/AppIcon-29.png', type: 'file', size: 29 },
-        { path: 'iOS/AppIcon-40.png', type: 'file', size: 40 },
-        { path: 'iOS/AppIcon-60.png', type: 'file', size: 60 },
-        { path: 'iOS/AppIcon-76.png', type: 'file', size: 76 },
-        { path: 'iOS/AppIcon-83.5.png', type: 'file', size: 83.5 },
-        { path: 'iOS/AppIcon-1024.png', type: 'file', size: 1024 },
-      ],
-    },
-    {
-      path: 'Web', type: 'folder', children: [
-        { path: 'Web/favicon-16x16.png', type: 'file', size: 16 },
-        { path: 'Web/favicon-32x32.png', type: 'file', size: 32 },
-        { path: 'Web/apple-touch-icon.png', type: 'file', size: 180 },
-        { path: 'Web/android-chrome-192x192.png', type: 'file', size: 192 },
-        { path: 'Web/android-chrome-512x512.png', type: 'file', size: 512 },
-      ],
-    },
-    {
-      path: 'Desktop', type: 'folder', children: [
-        { path: 'Desktop/windows-tile.png', type: 'file', size: 150 },
-        { path: 'Desktop/macos-dock.png', type: 'file', size: 128 },
-        { path: 'Desktop/linux-launcher.png', type: 'file', size: 256 },
-      ],
-    },
-  ];
-
-  if (includeManifests) {
-    structure[1].children!.push(
-      { path: 'iOS/Contents.json', type: 'file', size: 0 },
-    );
-    structure[2].children!.push(
-      { path: 'Web/site.webmanifest', type: 'file', size: 0 },
-      { path: 'Web/browserconfig.xml', type: 'file', size: 0 },
-    );
-  }
-
-  return structure;
 }
 
 export function getCompressionLevel(level: 'low' | 'balanced' | 'maximum'): number {
   switch (level) {
-    case 'low': return 1;
-    case 'balanced': return 6;
-    case 'maximum': return 9;
+    case 'low':
+      return 1;
+    case 'balanced':
+      return 6;
+    case 'maximum':
+      return 9;
   }
-}
-
-export function estimateZipSize(
-  files: { path: string; blob: Blob }[],
-  texts: { path: string; content: string }[],
-  compressionLevel: 'low' | 'balanced' | 'maximum'
-): number {
-  const level = getCompressionLevel(compressionLevel);
-  const ratio = level === 1 ? 0.98 : level <= 6 ? 0.97 : 0.95;
-
-  let totalSize = 0;
-  for (const f of files) totalSize += f.blob.size;
-  for (const t of texts) totalSize += new TextEncoder().encode(t.content).length;
-
-  return Math.round(totalSize * ratio);
 }
 
 export async function packZip(
@@ -211,9 +166,13 @@ export async function packZip(
   texts: { path: string; content: string }[],
   options: ExportOptions,
   onProgress?: (current: number, total: number) => void
-): Promise<{ blob: Blob; size: number }> {
+): Promise<{ blob: Blob; size: number; fileCount: number }> {
   const zip = new JSZip();
-  const total = files.length + texts.length + (options.includeREADME ? 1 : 0);
+
+  // Manifests are optional; the image assets always ship.
+  const includedTexts = options.includeManifests ? texts : [];
+  const source = options.includeSource ? options.source ?? null : null;
+  const total = files.length + includedTexts.length + (options.includeREADME ? 1 : 0) + (source ? 1 : 0);
   let done = 0;
 
   const progress = () => {
@@ -226,17 +185,18 @@ export async function packZip(
     progress();
   }
 
-  for (const text of texts) {
+  for (const text of includedTexts) {
     zip.file(text.path, text.content);
     progress();
   }
 
   if (options.includeREADME) {
-    zip.file('README.txt', generateReadme());
+    zip.file('README.txt', generateReadme(options));
     progress();
   }
 
-  if (options.includeSource) {
+  if (source) {
+    zip.file(source.name, source.blob);
     progress();
   }
 
@@ -248,5 +208,5 @@ export async function packZip(
     compressionOptions: useCompression ? { level } : undefined,
   });
 
-  return { blob, size: blob.size };
+  return { blob, size: blob.size, fileCount: total };
 }

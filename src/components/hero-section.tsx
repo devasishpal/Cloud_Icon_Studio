@@ -2,9 +2,11 @@
 
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Smartphone, Apple, Globe, Monitor, Download, Palette, Shapes, Zap, Crop, RotateCw } from 'lucide-react';
+import { Sparkles, Smartphone, Apple, Globe, Monitor, Download, Palette, Shapes, Zap, Crop, RotateCw, Wand2 } from 'lucide-react';
 import { UploadBox } from '@/components/upload/upload-box';
-import { useEditorStore } from '@/store/useEditorStore';
+import { flushPersistence, useEditorStore } from '@/store/useEditorStore';
+import { normalizeUpload } from '@/lib/image-ops';
+import { loadImageElement } from '@/lib/render';
 
 const features = [
   { icon: Smartphone, title: 'Android Adaptive Icons', desc: 'Mipmap sets, adaptive icons with safe zones, and Material You themed icons for Android 13+' },
@@ -15,27 +17,40 @@ const features = [
   { icon: Shapes, title: 'Icon Shape Masks', desc: 'Circle, squircle, rounded square, and teardrop device masks' },
   { icon: Crop, title: 'Precision Cropping', desc: 'Aspect-ratio locked crop tool with safe zone overlays for adaptive icons' },
   { icon: RotateCw, title: 'Rotation & Padding', desc: 'Fine-tune rotation and inner padding to perfectly frame artwork' },
+  { icon: Wand2, title: 'AI Background Removal', desc: 'U2Net AI and chroma-key removal run locally in your browser' },
   { icon: Download, title: 'ZIP Export', desc: 'Everything packaged in a structured ZIP archive with proper folder hierarchy' },
 ];
 
 const platforms = [
-  { name: 'Android', icon: Smartphone, items: 'Mipmap mdpi-xxxhdpi, adaptive icons, monochrome, Play Store' },
-  { name: 'iOS', icon: Apple, items: 'iPhone, iPad, App Store, Spotlight, Settings, Notification icons' },
-  { name: 'Web', icon: Globe, items: 'Favicon, apple-touch-icon, PWA manifest, browserconfig' },
-  { name: 'Desktop', icon: Monitor, items: 'Windows tiles, macOS dock, Linux launcher, app shortcuts' },
+  { name: 'Android', icon: Smartphone, items: 'Mipmap ldpi-xxxhdpi, adaptive + monochrome, notification, Play Store' },
+  { name: 'iOS', icon: Apple, items: '19 AppIcon sizes for iPhone, iPad, Spotlight, Settings, App Store' },
+  { name: 'Web', icon: Globe, items: 'Favicons, apple-touch-icon, PWA + maskable icons, manifest, browserconfig' },
+  { name: 'Desktop', icon: Monitor, items: 'Windows tiles + ICO, macOS ICNS, Linux hicolor PNGs' },
 ];
 
 export function HeroSection() {
   const router = useRouter();
   const setImage = useEditorStore((s) => s.setImage);
 
-  const handleUpload = (file: File, dataUrl: string) => {
-    const img = new Image();
-    img.onload = () => {
-      setImage({ file, dataUrl, width: img.width, height: img.height });
-      router.push('/editor');
-    };
-    img.src = dataUrl;
+  const handleUpload = async (file: File, dataUrl: string) => {
+    // Rasterise SVGs and cap huge bitmaps so every browser can render and
+    // export the artwork consistently.
+    const normalized = await normalizeUpload(file, dataUrl).catch(() => null);
+    const finalUrl = normalized?.dataUrl ?? dataUrl;
+
+    // Decode through the shared image cache so the editor can paint the new
+    // artwork synchronously on its first render (no stale frame, no blank).
+    const img = await loadImageElement(finalUrl);
+    setImage({
+      file,
+      dataUrl: finalUrl,
+      width: normalized?.width ?? img.naturalWidth,
+      height: normalized?.height ?? img.naturalHeight,
+    });
+    // Make sure the new artwork is committed to IndexedDB before the editor
+    // mounts and potentially rehydrates the previous session.
+    await flushPersistence();
+    router.push('/editor');
   };
 
   return (
@@ -71,9 +86,9 @@ export function HeroSection() {
           </h1>
 
           <p className="mx-auto mb-6 max-w-2xl text-base text-muted-foreground sm:text-lg lg:text-xl leading-relaxed px-2">
-            Upload your artwork once and instantly generate a complete icon set for every platform.
-            Properly sized launcher icons, mipmaps, adaptive icons, favicons, and export packs — all
-            in your browser with zero server uploads.
+            Upload your artwork once and generate a complete icon set for every platform.
+            Launcher icons, adaptive icons, favicons, desktop formats, and local AI background
+            removal — all in your browser with zero artwork uploads.
           </p>
 
           <motion.div
@@ -163,7 +178,7 @@ export function HeroSection() {
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             {[
-              { step: '1', title: 'Upload', desc: 'Choose a PNG, JPG, WEBP, or SVG' },
+              { step: '1', title: 'Upload', desc: 'PNG, JPG, WebP or SVG · max 25 MB' },
               { step: '2', title: 'Adjust', desc: 'Crop, rotate, set padding & background' },
               { step: '3', title: 'Preview', desc: 'See live mockups on every platform' },
               { step: '4', title: 'Export', desc: 'Download a ZIP with all icon sets' },
@@ -193,7 +208,7 @@ export function HeroSection() {
         >
           <div className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/30 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm text-muted-foreground">
             <Zap className="size-3 sm:size-3.5 text-primary" />
-            100% client-side &middot; No uploads &middot; Private &amp; secure
+            100% client-side &middot; No artwork uploads &middot; Private &amp; secure
           </div>
         </motion.div>
       </div>

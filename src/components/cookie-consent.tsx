@@ -12,8 +12,12 @@ export function CookieConsent() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const consented = localStorage.getItem(COOKIE_CONSENT_KEY);
-    if (!consented) setVisible(true);
+    // Defer to the next task so the first paint matches the server HTML and
+    // the banner animates in without a hydration mismatch.
+    const timer = window.setTimeout(() => {
+      if (!localStorage.getItem(COOKIE_CONSENT_KEY)) setVisible(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const accept = () => {

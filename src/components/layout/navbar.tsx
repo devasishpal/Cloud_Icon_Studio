@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { GitHubIcon } from '@/components/icons/github-icon';
+import { GITHUB_URL } from '@/lib/constants';
 
 const NAV_LINKS = [
   { label: 'Platforms', href: '#platforms' },
@@ -18,7 +20,10 @@ const NAV_LINKS = [
 export function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
   const pathname = usePathname();
   const router = useRouter();
   const isEditor = pathname === '/editor';
@@ -53,7 +58,11 @@ export function Navbar() {
 
   return (
     <header
-      className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60"
+      className={
+        isEditor
+          ? 'dark sticky top-0 z-50 w-full border-b border-white/10 bg-[#17181c]/95 text-zinc-100 backdrop-blur-xl supports-[backdrop-filter]:bg-[#17181c]/85'
+          : 'sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60'
+      }
       role="banner"
     >
       <div className="flex h-14 items-center justify-between px-4 sm:px-6 max-w-[1920px] mx-auto">
@@ -69,7 +78,7 @@ export function Navbar() {
           )}
           <Link href={isEditor ? '/editor' : '/'} className="flex items-center gap-2.5 group" aria-label="CloudIcon Studio">
             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors overflow-hidden">
-              <Image src="/icon.png" alt="CloudIcon" width={36} height={36} className="object-contain shrink-0" />
+              <Image src="/icon-192.png" alt="CloudIcon" width={36} height={36} className="rounded-[9px] object-contain shrink-0" />
             </div>
             <span className="hidden sm:inline">
               {isEditor ? (
@@ -80,10 +89,18 @@ export function Navbar() {
                 </span>
               )}
             </span>
-            <span className="text-lg font-extrabold tracking-wide sm:hidden" style={{ background: 'linear-gradient(135deg, #215ee9, #e040cf, #faa83b, #08cbfb)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              CloudIcon
-            </span>
+            {!isEditor && (
+              <span className="text-lg font-extrabold tracking-wide sm:hidden" style={{ background: 'linear-gradient(135deg, #215ee9, #e040cf, #faa83b, #08cbfb)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                CloudIcon
+              </span>
+            )}
           </Link>
+          {isEditor && (
+            <span className="hidden items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-400 sm:inline-flex">
+              <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" />
+              Workspace
+            </span>
+          )}
         </div>
 
         {!isEditor && (
@@ -119,10 +136,10 @@ export function Navbar() {
               >
                 <Redo2 className="size-4" />
               </button>
-              <div className="h-5 w-px bg-border/50 mx-1" />
+              <div className="hidden h-5 w-px bg-border/50 mx-1 sm:block" />
               <button
                 onClick={() => useEditorStore.getState().setRotation(0)}
-                className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+                className="hidden rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all sm:flex"
                 aria-label="Reset rotation"
                 title="Reset rotation"
               >
@@ -130,13 +147,13 @@ export function Navbar() {
               </button>
               <button
                 onClick={() => useEditorStore.getState().setZoom(100)}
-                className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+                className="hidden rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all sm:flex"
                 aria-label="Reset zoom"
                 title="Reset view"
               >
                 <ZoomIn className="size-4" />
               </button>
-              <div className="h-5 w-px bg-border/50 mx-1" />
+              <div className="hidden h-5 w-px bg-border/50 mx-1 sm:block" />
               <Button
                 size="sm"
                 variant="default"
@@ -183,6 +200,16 @@ export function Navbar() {
               Launch Editor
             </button>
           )}
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+            aria-label="View CloudIcon Studio on GitHub"
+            title="View on GitHub"
+          >
+            <GitHubIcon className="size-4" />
+          </a>
           <ThemeToggle />
           {!isEditor && (
             <button
@@ -207,6 +234,15 @@ export function Navbar() {
               {link.label}
             </button>
           ))}
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+          >
+            <GitHubIcon className="size-4" />
+            View on GitHub
+          </a>
           <button
             onClick={handleLaunchEditor}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white transition-all mt-2"

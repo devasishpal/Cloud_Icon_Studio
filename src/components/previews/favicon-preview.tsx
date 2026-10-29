@@ -2,7 +2,8 @@
 
 import { motion } from 'framer-motion';
 import { useEditorStore } from '@/store/useEditorStore';
-import { cn, paddingStyle, shapeStyle } from '@/lib/utils';
+import { usePreviewIcon } from '@/components/previews/use-preview-icon';
+import { cn } from '@/lib/utils';
 
 interface FaviconPreviewProps {
   className?: string;
@@ -10,20 +11,10 @@ interface FaviconPreviewProps {
 
 export function FaviconPreview({ className }: FaviconPreviewProps) {
   const image = useEditorStore((s) => s.image);
-  const padding = useEditorStore((s) => s.padding);
-  const rotation = useEditorStore((s) => s.rotation);
-  const backgroundColor = useEditorStore((s) => s.backgroundColor);
-  const backgroundType = useEditorStore((s) => s.backgroundType);
-  const gradientPreset = useEditorStore((s) => s.gradientPreset);
-  const previewPrefs = useEditorStore((s) => s.previewPreferences);
+  const rendered = usePreviewIcon(256);
 
   if (!image.dataUrl) return null;
-  const src = image.dataUrl;
-  const shape = previewPrefs.iconShape;
-  const iconBg = backgroundType === 'transparent' ? 'repeating-conic-gradient(#1a1a1e 0% 25%, transparent 0% 50%) 50% / 8px 8px'
-    : backgroundType === 'gradient' && gradientPreset
-      ? `linear-gradient(${gradientPreset.angle}deg, ${gradientPreset.colors[0]}, ${gradientPreset.colors[1]})`
-      : backgroundColor;
+  const src = rendered ?? image.dataUrl;
 
   const faviconSizes = [
     { label: 'Favicon', size: 16 },
@@ -44,14 +35,13 @@ export function FaviconPreview({ className }: FaviconPreviewProps) {
           return (
             <div key={label} className="flex flex-col items-center gap-1.5">
               <div
-                className="rounded border border-border/50 overflow-hidden shadow-sm"
-                style={{ width: displaySize, height: displaySize, ...shapeStyle(shape), backgroundColor: iconBg }}
+                className="overflow-hidden drop-shadow-sm"
+                style={{ width: displaySize, height: displaySize }}
               >
                 <img
                   src={src}
                   alt={label}
                   className="size-full object-contain"
-                  style={{ ...paddingStyle(padding), rotate: `${rotation}deg` }}
                 />
               </div>
               <span className="text-[10px] text-muted-foreground">{label}</span>

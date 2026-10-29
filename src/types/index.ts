@@ -30,7 +30,10 @@ export type ActiveTool =
   | 'grid'
   | 'pan'
   | 'shape'
-  | 'padding';
+  | 'padding'
+  | 'adjust'
+  | 'effects'
+  | 'remove-bg';
 
 export type UploadStatus = 'idle' | 'dragging' | 'uploading' | 'processing' | 'success' | 'error';
 
@@ -59,10 +62,37 @@ export interface SafeAreaSettings {
 }
 
 export type PreviewTabType = 'android' | 'ios' | 'web' | 'desktop' | 'all';
-export type IconShape = 'circle' | 'squircle' | 'rounded-square' | 'teardrop';
+export type IconShape = 'circle' | 'squircle' | 'rounded-square' | 'teardrop' | 'square';
 export type DeviceStyle = 'pixel' | 'samsung' | 'iphone' | 'ipad';
 export type BrowserType = 'chrome' | 'safari' | 'edge' | 'firefox';
 export type PreviewTheme = 'dark' | 'light';
+export type ImageFit = 'contain' | 'cover' | 'stretch';
+
+/** Position/scale of the artwork inside the icon frame. Offsets are normalised to the frame (0.5 = half a frame). */
+export interface ImageTransform {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+export interface ImageAdjustments {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  hue: number;
+  blur: number;
+  grayscale: number;
+  opacity: number;
+}
+
+export interface ImageEffects {
+  shadow: number;
+  shadowColor: string;
+  borderWidth: number;
+  borderColor: string;
+  flipX: boolean;
+  flipY: boolean;
+}
 
 export interface PreviewPreferences {
   theme: PreviewTheme;
@@ -91,6 +121,10 @@ export interface EditorState {
   safeArea: SafeAreaSettings;
   showGrid: boolean;
   padding: number;
+  fit: ImageFit;
+  transform: ImageTransform;
+  adjustments: ImageAdjustments;
+  effects: ImageEffects;
   canvasWidth: number;
   canvasHeight: number;
   generatedIcons: GeneratedIcon[];

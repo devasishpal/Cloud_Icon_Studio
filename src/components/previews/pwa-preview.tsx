@@ -2,7 +2,8 @@
 
 import { motion } from 'framer-motion';
 import { useEditorStore } from '@/store/useEditorStore';
-import { cn, paddingStyle, shapeStyle } from '@/lib/utils';
+import { usePreviewIcon } from '@/components/previews/use-preview-icon';
+import { cn } from '@/lib/utils';
 
 interface PwaPreviewProps {
   className?: string;
@@ -10,13 +11,11 @@ interface PwaPreviewProps {
 
 export function PwaPreview({ className }: PwaPreviewProps) {
   const image = useEditorStore((s) => s.image);
-  const padding = useEditorStore((s) => s.padding);
-  const rotation = useEditorStore((s) => s.rotation);
   const previewPrefs = useEditorStore((s) => s.previewPreferences);
+  const rendered = usePreviewIcon(256);
 
   if (!image.dataUrl) return null;
-  const src = image.dataUrl;
-  const shape = previewPrefs.iconShape;
+  const src = rendered ?? image.dataUrl;
 
   return (
     <motion.div
@@ -28,15 +27,11 @@ export function PwaPreview({ className }: PwaPreviewProps) {
 
       <div className="rounded-xl border border-border/50 overflow-hidden">
         <div className="bg-zinc-800/80 p-4 flex items-center gap-3">
-          <div
-            className="size-12 rounded-xl overflow-hidden shadow-lg bg-card"
-            style={{ ...shapeStyle(shape) }}
-          >
+          <div className="size-12 overflow-hidden drop-shadow-lg">
             <img
               src={src}
               alt="PWA icon"
               className="size-full object-contain"
-              style={{ ...paddingStyle(padding), rotate: `${rotation}deg` }}
             />
           </div>
           <div className="flex-1">
@@ -50,12 +45,11 @@ export function PwaPreview({ className }: PwaPreviewProps) {
 
         <div className={cn('p-4 space-y-3', previewPrefs.theme === 'dark' ? 'bg-zinc-900' : 'bg-zinc-100')}>
           <div className="flex items-center gap-3">
-            <div className="size-8 rounded-xl overflow-hidden shadow-sm bg-card" style={{ ...shapeStyle(shape) }}>
+            <div className="size-8 overflow-hidden drop-shadow-sm">
               <img
                 src={src}
                 alt="App icon"
                 className="size-full object-contain"
-                style={{ ...paddingStyle(padding), rotate: `${rotation}deg` }}
               />
             </div>
             <div>

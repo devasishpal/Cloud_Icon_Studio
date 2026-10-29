@@ -29,6 +29,9 @@ export function getShapeClip(shape: IconShape, size: number): string {
       return `inset(0 round ${size * 0.22}px)`;
     case 'teardrop':
       return `path('M${r} ${size} C${size} ${size},${size} ${r * 0.5},${size} ${r} C${size} ${r * 0.2},${r * 1.4} 0,${r} 0 C${r * 0.6} 0,0 ${r * 0.2},0 ${r} C0 ${r * 0.5},0 ${size},${r} ${size}Z')`;
+    case 'square':
+    default:
+      return 'none';
   }
 }
 
@@ -38,6 +41,7 @@ export function shapeBorderRadius(shape: IconShape): string {
     case 'squircle': return '30%';
     case 'rounded-square': return '20%';
     case 'teardrop': return '0';
+    case 'square': return '0';
   }
 }
 

@@ -1,583 +1,796 @@
 'use client';
 
-import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import * as fabric from 'fabric';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
+import { Loader2, Plus } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
+import { usePreviewIcon } from '@/components/previews/use-preview-icon';
+import { frameToSourcePoint, loadImageElement, type RenderConfig } from '@/lib/render';
+import { cropSourceImage, normalizeUpload } from '@/lib/image-ops';
+import { getShapeClip } from '@/lib/utils';
+import {
+  DEFAULT_ADJUSTMENTS,
+  DEFAULT_EFFECTS,
+  DEFAULT_FIT,
+  DEFAULT_TRANSFORM,
+} from '@/lib/constants';
 
-const CANVAS_BG = '#555555';
+const FRAME = 512;
 
-interface GridObject extends fabric.FabricObject {
-  data?: { type: string };
+interface CropRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
-interface BgObject extends fabric.FabricObject {
-  data?: { type: string };
-}
+type CropHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+
+type Gesture =
+  | { type: 'pan'; startX: number; startY: number; startPanX: number; startPanY: number }
+  | {
+      type: 'move';
+      startX: number;
+      startY: number;
+      startOffsetX: number;
+      startOffsetY: number;
+      framePx: number;
+    }
+  | { type: 'scale'; startDist: number; startScale: number }
+  | { type: 'rotate'; startAngle: number; startRotation: number }
+  | { type: 'crop-move'; startX: number; startY: number; startRect: CropRect; framePx: number }
+  | {
+      type: 'crop-resize';
+      handle: CropHandle;
+      startX: number;
+      startY: number;
+      startRect: CropRect;
+      framePx: number;
+    };
 
 export interface FabricCanvasHandle {
   applyCrop: () => void;
 }
 
-export const FabricCanvas = forwardRef<FabricCanvasHandle, {}>(function FabricCanvas(props, ref) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fabricRef = useRef<fabric.Canvas | null>(null);
-  const imageRef = useRef<fabric.Image | null>(null);
-  const bgRectRef = useRef<BgObject | null>(null);
-  const cropRectRef = useRef<fabric.Rect | null>(null);
-  const isCreatingCropRef = useRef(false);
-  const loadIdRef = useRef(0);
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+function aspectValue(ratio: string): number | null {
+  if (ratio === '1:1') return 1;
+  if (ratio === '4:3') return 4 / 3;
+  if (ratio === '16:9') return 16 / 9;
+  return null;
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function buildRenderConfig(state: ReturnType<typeof useEditorStore.getState>): RenderConfig {
+  return {
+    image: state.image,
+    size: FRAME,
+    padding: state.padding ?? 0,
+    rotation: state.rotation ?? 0,
+    backgroundColor: state.backgroundColor ?? '#7C3AED',
+    backgroundType: state.backgroundType ?? 'solid',
+    gradientPreset: state.gradientPreset ?? null,
+    iconShape: state.previewPreferences?.iconShape ?? 'squircle',
+    fit: state.fit ?? DEFAULT_FIT,
+    transform: state.transform ?? DEFAULT_TRANSFORM,
+    adjustments: state.adjustments ?? DEFAULT_ADJUSTMENTS,
+    effects: state.effects ?? DEFAULT_EFFECTS,
+  };
+}
+
+export const FabricCanvas = forwardRef<FabricCanvasHandle, object>(function FabricCanvas(_props, ref) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [container, setContainer] = useState({ w: 800, h: 600 });
+  const [cropRect, setCropRect] = useState<CropRect>({ x: 0.1, y: 0.1, w: 0.8, h: 0.8 });
+  const cropRectRef = useRef(cropRect);
+  cropRectRef.current = cropRect;
+
+  const gestureRef = useRef<Gesture | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   const image = useEditorStore((s) => s.image);
   const zoom = useEditorStore((s) => s.zoom);
-  const rotation = useEditorStore((s) => s.rotation);
   const panX = useEditorStore((s) => s.panX);
   const panY = useEditorStore((s) => s.panY);
-  const backgroundColor = useEditorStore((s) => s.backgroundColor);
+  const rotation = useEditorStore((s) => s.rotation);
+  const transform = useEditorStore((s) => s.transform);
   const backgroundType = useEditorStore((s) => s.backgroundType);
-  const gradientPreset = useEditorStore((s) => s.gradientPreset);
-  const showGrid = useEditorStore((s) => s.showGrid);
-  const padding = useEditorStore((s) => s.padding);
-  const crop = useEditorStore((s) => s.crop);
   const activeTool = useEditorStore((s) => s.activeTool);
+  const crop = useEditorStore((s) => s.crop);
+  const showGrid = useEditorStore((s) => s.showGrid);
+  const safeArea = useEditorStore((s) => s.safeArea);
   const iconShape = useEditorStore((s) => s.previewPreferences.iconShape);
   const setCanvasSize = useEditorStore((s) => s.setCanvasSize);
-  const setImage = useEditorStore((s) => s.setImage);
+  const previewUrl = usePreviewIcon(768);
+  // If a rendered preview ever fails to decode, fall back to the raw artwork
+  // instead of showing an empty frame.
+  const [previewFailed, setPreviewFailed] = useState(false);
+  useEffect(() => {
+    setPreviewFailed(false);
+  }, [previewUrl]);
+  const displayUrl = previewFailed ? image.dataUrl : previewUrl ?? image.dataUrl;
 
-  const createShapeClipPath = useCallback((shape: string, w: number, h: number) => {
-    const cx = w / 2, cy = h / 2;
-    const d = Math.min(w, h), r = d / 2;
-    switch (shape) {
-      case 'circle': {
-        const cr = Math.min(cx, cy);
-        const e = new fabric.Ellipse({ rx: cr, ry: cr, left: cx - cr, top: cy - cr });
-        e.set({ evented: false, selectable: false }); return e;
-      }
-      case 'squircle': {
-        const rr = d * 0.3;
-        const rect = new fabric.Rect({ left: 0, top: 0, width: w, height: h, rx: rr, ry: rr });
-        rect.set({ evented: false, selectable: false }); return rect;
-      }
-      case 'rounded-square': {
-        const rr = d * 0.22;
-        const rect = new fabric.Rect({ left: 0, top: 0, width: w, height: h, rx: rr, ry: rr });
-        rect.set({ evented: false, selectable: false }); return rect;
-      }
-      case 'teardrop': {
-        const p = `M ${cx} ${h} C ${w} ${h}, ${w} ${cy + r * 0.3}, ${w} ${cy} C ${w} ${cy * 0.2}, ${cx + r * 0.8} ${cy - r}, ${cx} ${cy - r} C ${cx - r * 0.8} ${cy - r}, ${0} ${cy * 0.2}, ${0} ${cy} C ${0} ${cy + r * 0.3}, ${0} ${h}, ${cx} ${h} Z`;
-        const path = new fabric.Path(p, { left: 0, top: 0 });
-        path.set({ evented: false, selectable: false }); return path;
-      }
-      default: return null;
+  const framePx = Math.max(120, Math.min(container.w, container.h) * 0.72 * (zoom / 100));
+
+  const stateRef = useRef({
+    framePx,
+    zoom,
+    panX,
+    panY,
+    transform,
+    rotation,
+  });
+  stateRef.current = { framePx, zoom, panX, panY, transform, rotation };
+
+  // Track container size.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth || 800;
+      const h = el.clientHeight || 600;
+      setContainer({ w, h });
+      setCanvasSize(w, h);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [setCanvasSize]);
+
+  // Reset the crop box when the crop tool is opened or its ratio changes.
+  useEffect(() => {
+    if (!crop.enabled) return;
+    const ar = aspectValue(crop.aspectRatio);
+    if (!ar) {
+      setCropRect({ x: 0.1, y: 0.1, w: 0.8, h: 0.8 });
+      return;
+    }
+    const maxW = 0.8;
+    const maxH = 0.8;
+    let w = maxW;
+    let h = w / ar;
+    if (h > maxH) {
+      h = maxH;
+      w = h * ar;
+    }
+    setCropRect({ x: (1 - w) / 2, y: (1 - h) / 2, w, h });
+  }, [crop.enabled, crop.aspectRatio]);
+
+  const startGesture = useCallback((gesture: Gesture) => {
+    gestureRef.current = gesture;
+    setDragging(true);
+  }, []);
+
+  const handleArtworkFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please choose an image file.');
+      return;
+    }
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const normalized = await normalizeUpload(file, dataUrl).catch(() => null);
+      const finalUrl = normalized?.dataUrl ?? dataUrl;
+      const img = await loadImageElement(finalUrl);
+      useEditorStore.getState().setImage({
+        file,
+        dataUrl: finalUrl,
+        width: normalized?.width ?? img.naturalWidth,
+        height: normalized?.height ?? img.naturalHeight,
+      });
+    } catch {
+      setUploadError('Could not load that image. Try another file.');
+    } finally {
+      setUploading(false);
     }
   }, []);
 
-  const drawGridFn = useCallback((canvas: fabric.Canvas, show: boolean) => {
-    const existing = canvas.getObjects().filter(
-      (obj) => (obj as GridObject).data?.type === 'grid-line'
-    );
-    existing.forEach((obj) => canvas.remove(obj));
+  const handlePointerMove = useCallback((e: PointerEvent) => {
+    const gesture = gestureRef.current;
+    if (!gesture) return;
+    const store = useEditorStore.getState();
 
-    if (!show) { canvas.requestRenderAll(); return; }
-
-    const w = canvas.getWidth();
-    const h = canvas.getHeight();
-    const step = 50;
-
-    for (let x = 0; x <= w; x += step) {
-      const line = new fabric.Line([x, 0, x, h], {
-        stroke: 'rgba(139, 92, 246, 0.15)', strokeWidth: 1,
-        selectable: false, evented: false,
-      }) as GridObject;
-      line.data = { type: 'grid-line' };
-      canvas.add(line);
-    }
-    for (let y = 0; y <= h; y += step) {
-      const line = new fabric.Line([0, y, w, y], {
-        stroke: 'rgba(139, 92, 246, 0.15)', strokeWidth: 1,
-        selectable: false, evented: false,
-      }) as GridObject;
-      line.data = { type: 'grid-line' };
-      canvas.add(line);
-    }
-
-    const cx = w / 2, cy = h / 2;
-    [line(0, cy, w, cy, 'rgba(139, 92, 246, 0.3)', [5, 5]),
-     line(cx, 0, cx, h, 'rgba(139, 92, 246, 0.3)', [5, 5])].forEach((l) => canvas.add(l));
-
-    canvas.renderAll();
-  }, []);
-
-  const line = (x1: number, y1: number, x2: number, y2: number, stroke: string, dash?: number[]) => {
-    const l = new fabric.Line([x1, y1, x2, y2], {
-      stroke, strokeWidth: 1, selectable: false, evented: false,
-      strokeDashArray: dash,
-    }) as GridObject;
-    l.data = { type: 'grid-line' };
-    return l;
-  };
-
-  const createShapeClipPathRef = useRef(createShapeClipPath);
-  createShapeClipPathRef.current = createShapeClipPath;
-
-  const updateBgFillRect = useCallback((canvas: fabric.Canvas, img: fabric.Image) => {
-    if (backgroundType === 'transparent') {
-      if (bgRectRef.current) {
-        canvas.remove(bgRectRef.current);
-        bgRectRef.current = null;
-      }
-      canvas.requestRenderAll();
+    if (gesture.type === 'pan') {
+      store.setPan(
+        gesture.startPanX + (e.clientX - gesture.startX),
+        gesture.startPanY + (e.clientY - gesture.startY)
+      );
       return;
     }
 
-    let fill: string | fabric.Gradient<'linear', 'linear'> = backgroundColor;
-    if (backgroundType === 'gradient' && gradientPreset) {
-      const angle = gradientPreset.angle;
-      const rad = (angle * Math.PI) / 180;
-      const cos = Math.cos(rad), sin = Math.sin(rad);
-      fill = new fabric.Gradient({
-        type: 'linear',
-        coords: {
-          x1: 0.5 - cos * 0.5, y1: 0.5 - sin * 0.5,
-          x2: 0.5 + cos * 0.5, y2: 0.5 + sin * 0.5,
-        },
-        colorStops: [
-          { offset: 0, color: gradientPreset.colors[0] },
-          { offset: 1, color: gradientPreset.colors[1] },
-        ],
+    if (gesture.type === 'move') {
+      const dx = (e.clientX - gesture.startX) / gesture.framePx;
+      const dy = (e.clientY - gesture.startY) / gesture.framePx;
+      store.setTransform({
+        offsetX: Math.max(-2, Math.min(2, gesture.startOffsetX + dx)),
+        offsetY: Math.max(-2, Math.min(2, gesture.startOffsetY + dy)),
       });
+      return;
     }
 
-    if (bgRectRef.current) {
-      bgRectRef.current.set({
-        left: img.left, top: img.top,
-        width: img.width, height: img.height,
-        scaleX: img.scaleX, scaleY: img.scaleY,
-        angle: img.angle,
-        fill,
+    if (gesture.type === 'scale') {
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2 + store.panX;
+      const cy = rect.top + rect.height / 2 + store.panY;
+      const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+      const next = gesture.startScale * (dist / Math.max(1, gesture.startDist));
+      store.setTransform({ scale: Math.max(0.1, Math.min(12, next)) });
+      return;
+    }
+
+    if (gesture.type === 'rotate') {
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2 + store.panX;
+      const cy = rect.top + rect.height / 2 + store.panY;
+      const angle = (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI;
+      let next = gesture.startRotation + (angle - gesture.startAngle);
+      next = ((next + 180) % 360 + 360) % 360 - 180;
+      store.setRotation(Math.round(next));
+      return;
+    }
+
+    if (gesture.type === 'crop-move') {
+      const dx = (e.clientX - gesture.startX) / gesture.framePx;
+      const dy = (e.clientY - gesture.startY) / gesture.framePx;
+      const x = Math.max(0, Math.min(1 - gesture.startRect.w, gesture.startRect.x + dx));
+      const y = Math.max(0, Math.min(1 - gesture.startRect.h, gesture.startRect.y + dy));
+      setCropRect({ ...gesture.startRect, x, y });
+      return;
+    }
+
+    if (gesture.type === 'crop-resize') {
+      const dx = (e.clientX - gesture.startX) / gesture.framePx;
+      const dy = (e.clientY - gesture.startY) / gesture.framePx;
+      const start = gesture.startRect;
+      const ar = aspectValue(store.crop.aspectRatio);
+
+      let left = start.x;
+      let top = start.y;
+      let right = start.x + start.w;
+      let bottom = start.y + start.h;
+
+      if (gesture.handle.includes('w')) left = clamp01(start.x + dx);
+      if (gesture.handle.includes('e')) right = clamp01(start.x + start.w + dx);
+      if (gesture.handle.includes('n')) top = clamp01(start.y + dy);
+      if (gesture.handle.includes('s')) bottom = clamp01(start.y + start.h + dy);
+
+      if (right - left < 0.04) {
+        if (gesture.handle.includes('w')) left = right - 0.04;
+        else right = left + 0.04;
+      }
+      if (bottom - top < 0.04) {
+        if (gesture.handle.includes('n')) top = bottom - 0.04;
+        else bottom = top + 0.04;
+      }
+
+      let w = right - left;
+      let h = bottom - top;
+
+      if (ar) {
+        const horizontalOnly = gesture.handle === 'e' || gesture.handle === 'w';
+        const verticalOnly = gesture.handle === 'n' || gesture.handle === 's';
+        if (horizontalOnly) {
+          h = w / ar;
+          const cy = top + (bottom - top) / 2;
+          top = cy - h / 2;
+          bottom = cy + h / 2;
+        } else if (verticalOnly) {
+          w = h * ar;
+          const cx = left + (right - left) / 2;
+          left = cx - w / 2;
+          right = cx + w / 2;
+        } else {
+          // Corner handle: use whichever axis moved further.
+          if (Math.abs(dx) >= Math.abs(dy)) h = w / ar;
+          else w = h * ar;
+          if (gesture.handle.includes('n')) top = bottom - h;
+          else bottom = top + h;
+          if (gesture.handle.includes('w')) left = right - w;
+          else right = left + w;
+        }
+
+        // Keep the box inside the frame while preserving the ratio.
+        if (left < 0) {
+          const shift = -left;
+          left = 0;
+          right += shift;
+        }
+        if (right > 1) {
+          const shift = right - 1;
+          right = 1;
+          left -= shift;
+        }
+        if (top < 0) {
+          const shift = -top;
+          top = 0;
+          bottom += shift;
+        }
+        if (bottom > 1) {
+          const shift = bottom - 1;
+          bottom = 1;
+          top -= shift;
+        }
+        left = clamp01(left);
+        top = clamp01(top);
+        right = clamp01(right);
+        bottom = clamp01(bottom);
+        w = Math.max(0.04, right - left);
+        h = Math.max(0.04, bottom - top);
+        if (Math.abs(w / h - ar) > 0.01) {
+          if (w / ar <= 1) h = w / ar;
+          else {
+            h = Math.min(1 - top, w / ar);
+            w = h * ar;
+          }
+        }
+      }
+
+      setCropRect({
+        x: clamp01(left),
+        y: clamp01(top),
+        w: Math.min(1 - clamp01(left), Math.max(0.04, w)),
+        h: Math.min(1 - clamp01(top), Math.max(0.04, h)),
       });
-      bgRectRef.current.dirty = true;
-    } else {
-      const rect = new fabric.Rect({
-        left: img.left, top: img.top,
-        width: img.width, height: img.height,
-        scaleX: img.scaleX, scaleY: img.scaleY,
-        originX: 'center', originY: 'center',
-        fill, selectable: false, evented: false,
-      }) as BgObject;
-      rect.data = { type: 'bg' };
-      canvas.add(rect);
-      canvas.sendObjectToBack(rect);
-      bgRectRef.current = rect;
-    }
-    const bgClip = createShapeClipPathRef.current(iconShape, img.width!, img.height!);
-    if (bgRectRef.current) {
-      bgRectRef.current.set({ clipPath: bgClip });
-      bgRectRef.current.dirty = true;
-    }
-    canvas.requestRenderAll();
-  }, [backgroundColor, backgroundType, gradientPreset, iconShape]);
-
-  const updateBgFillRectRef = useRef(updateBgFillRect);
-  updateBgFillRectRef.current = updateBgFillRect;
-
-  const setBackground = useCallback((canvas: fabric.Canvas, img?: fabric.Image | null) => {
-    canvas.backgroundColor = CANVAS_BG;
-    const target = img !== undefined ? img : imageRef.current;
-    if (target) {
-      updateBgFillRectRef.current(canvas, target);
-    } else if (bgRectRef.current) {
-      canvas.remove(bgRectRef.current);
-      bgRectRef.current = null;
-      canvas.requestRenderAll();
-    } else {
-      canvas.requestRenderAll();
     }
   }, []);
 
-  const setBackgroundRef = useRef(setBackground);
-  setBackgroundRef.current = setBackground;
-
-  const loadImageToCanvasRef = useRef<(canvas: fabric.Canvas, url: string) => void>(() => {});
-  loadImageToCanvasRef.current = (canvas: fabric.Canvas, url: string) => {
-    const imgEl = new window.Image();
-    imgEl.crossOrigin = 'anonymous';
-    const loadId = ++loadIdRef.current;
-    imgEl.onload = () => {
-      if (fabricRef.current !== canvas || loadIdRef.current !== loadId) return;
-      const cw = canvas.getWidth(), ch = canvas.getHeight();
-      const scale = Math.min((cw * 0.6) / imgEl.naturalWidth, (ch * 0.6) / imgEl.naturalHeight);
-      const currentTool = useEditorStore.getState().activeTool;
-      const isSelect = currentTool === 'select';
-      const img = new fabric.FabricImage(imgEl, {
-        left: cw / 2, top: ch / 2,
-        originX: 'center', originY: 'center',
-        scaleX: scale, scaleY: scale,
-        selectable: isSelect, evented: isSelect,
-      });
-      (img as any).__originalScale = scale;
-      try {
-        canvas.getObjects().forEach((obj) => {
-          if ((obj as any)?.data?.type !== 'grid-line' && (obj as any)?.data?.type !== 'bg') canvas.remove(obj);
-        });
-        canvas.add(img);
-        setBackgroundRef.current(canvas, img);
-      } catch {}
-      imageRef.current = img;
+  useEffect(() => {
+    const up = () => {
+      if (!gestureRef.current) return;
+      gestureRef.current = null;
+      setDragging(false);
     };
-    imgEl.src = url;
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+  }, [handlePointerMove]);
+
+  const onBackdropPointerDown = (e: React.PointerEvent) => {
+    const store = useEditorStore.getState();
+    const isPan = store.activeTool === 'pan' || e.button === 1 || e.altKey;
+    if (!isPan) return;
+    e.preventDefault();
+    startGesture({
+      type: 'pan',
+      startX: e.clientX,
+      startY: e.clientY,
+      startPanX: store.panX,
+      startPanY: store.panY,
+    });
   };
 
-  const initCanvas = useCallback(() => {
-    if (!canvasRef.current || fabricRef.current) return;
-    const parent = canvasRef.current.parentElement;
-    if (!parent) return;
-    const width = parent.clientWidth || 800;
-    const height = parent.clientHeight || 600;
-
-    const ctx = canvasRef.current.getContext('2d', {
-      alpha: true,
-      willReadFrequently: false,
-      desynchronized: true,
+  const onFramePointerDown = (e: React.PointerEvent) => {
+    const store = useEditorStore.getState();
+    if (store.crop.enabled) return;
+    if (store.activeTool === 'zoom') {
+      store.setZoom(Math.min(500, store.zoom + 25));
+      return;
+    }
+    if (store.activeTool !== 'select') return;
+    e.preventDefault();
+    e.stopPropagation();
+    startGesture({
+      type: 'move',
+      startX: e.clientX,
+      startY: e.clientY,
+      startOffsetX: store.transform.offsetX,
+      startOffsetY: store.transform.offsetY,
+      framePx,
     });
+  };
 
-    const canvas = new fabric.Canvas(canvasRef.current, {
-      width, height,
-      backgroundColor: CANVAS_BG,
-      selection: false,
-      preserveObjectStacking: true,
-      enableRetinaScaling: true,
-      stopContextMenu: true,
-      renderOnAddRemove: false,
-      skipTargetFind: true,
-      imageSmoothingEnabled: true,
+  const onScalePointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const store = useEditorStore.getState();
+    const cx = rect.left + rect.width / 2 + store.panX;
+    const cy = rect.top + rect.height / 2 + store.panY;
+    startGesture({
+      type: 'scale',
+      startDist: Math.max(1, Math.hypot(e.clientX - cx, e.clientY - cy)),
+      startScale: store.transform.scale,
     });
+  };
 
-    canvas.setZoom(1);
-    fabricRef.current = canvas;
-    setCanvasSize(width, height);
+  const onRotatePointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const store = useEditorStore.getState();
+    const cx = rect.left + rect.width / 2 + store.panX;
+    const cy = rect.top + rect.height / 2 + store.panY;
+    startGesture({
+      type: 'rotate',
+      startAngle: (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI,
+      startRotation: store.rotation,
+    });
+  };
 
-    if (image.dataUrl) loadImageToCanvasRef.current(canvas, image.dataUrl);
-
-    let animId: number;
-    const loop = () => {
-      const img = imageRef.current;
-      if (bgRectRef.current && img) {
-        if (
-          bgRectRef.current.left !== img.left ||
-          bgRectRef.current.top !== img.top
-        ) {
-          bgRectRef.current.set({ left: img.left, top: img.top });
-          bgRectRef.current.dirty = true;
-        }
-      }
-      canvas.renderAll();
-      animId = requestAnimationFrame(loop);
-    };
-    animId = requestAnimationFrame(loop);
-
-    return () => {
-      cancelAnimationFrame(animId);
-      canvas.dispose();
-      fabricRef.current = null;
-    };
-  }, [image.dataUrl, setCanvasSize]);
-
-  useEffect(() => {
-    const cleanup = initCanvas();
-    return () => cleanup?.();
-  }, [initCanvas]);
-
-  useEffect(() => {
-    const c = fabricRef.current;
-    if (!c) return;
-    const center = new fabric.Point(c.getWidth() / 2, c.getHeight() / 2);
-    c.zoomToPoint(center, zoom / 100);
-    c.requestRenderAll();
-  }, [zoom]);
-
-  useEffect(() => {
-    const img = imageRef.current;
-    const c = fabricRef.current;
-    if (!img) return;
-    img.set('angle', rotation);
-    img.dirty = true;
-    if (bgRectRef.current) {
-      bgRectRef.current.set({ angle: rotation });
-      bgRectRef.current.dirty = true;
-    }
-    (c || img.canvas)?.requestRenderAll();
-  }, [rotation]);
-
-  useEffect(() => {
-    const c = fabricRef.current;
-    const img = imageRef.current;
-    const sel = activeTool === 'select';
-    const canFind = activeTool === 'select' || activeTool === 'crop';
-    if (img) img.set({ selectable: sel, evented: sel });
-    if (c) {
-      c.selection = sel;
-      c.skipTargetFind = !canFind;
-      c.defaultCursor = canFind ? 'default' : 'crosshair';
-      c.requestRenderAll();
-    }
-  }, [activeTool]);
-
-  useEffect(() => {
-    const c = fabricRef.current;
-    if (!c) return;
-    const vpt = c.viewportTransform;
-    if (vpt) { vpt[4] = panX; vpt[5] = panY; c.requestRenderAll(); }
-  }, [panX, panY]);
-
-  useEffect(() => {
-    const c = fabricRef.current;
-    const img = imageRef.current;
-    if (!c) return;
-    setBackground(c, img ?? null);
-  }, [backgroundColor, backgroundType, gradientPreset, setBackground]);
-
-  useEffect(() => {
-    const c = fabricRef.current;
-    if (!c) return;
-    drawGridFn(c, showGrid);
-  }, [showGrid, drawGridFn]);
-
-  useEffect(() => {
-    const img = imageRef.current;
-    const c = fabricRef.current;
-    if (!img || !c) return;
-    const original = (img as any).__originalScale;
-    if (original == null) return;
-    const ratio = 1 - padding / 100;
-    img.set({ scaleX: original * ratio, scaleY: original * ratio });
-    img.dirty = true;
-    if (bgRectRef.current) {
-      updateBgFillRect(c, img);
+  const onCropPointerDown = (e: React.PointerEvent, handle?: CropHandle) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const store = useEditorStore.getState();
+    if (!store.crop.enabled) return;
+    if (handle) {
+      startGesture({
+        type: 'crop-resize',
+        handle,
+        startX: e.clientX,
+        startY: e.clientY,
+        startRect: cropRectRef.current,
+        framePx,
+      });
     } else {
-      c.requestRenderAll();
+      startGesture({
+        type: 'crop-move',
+        startX: e.clientX,
+        startY: e.clientY,
+        startRect: cropRectRef.current,
+        framePx,
+      });
     }
-  }, [padding, updateBgFillRect]);
-
-  useEffect(() => {
-    const img = imageRef.current;
-    const c = fabricRef.current;
-    if (!img) return;
-    const w = img.width;
-    const h = img.height;
-    if (!w || !h) return;
-    const clip = createShapeClipPath(iconShape, w, h);
-    img.set({ clipPath: clip });
-    img.dirty = true;
-    if (bgRectRef.current && c) {
-      updateBgFillRect(c, img);
-    } else {
-      img.canvas?.requestRenderAll();
-    }
-  }, [iconShape, createShapeClipPath, updateBgFillRect]);
-
-  useEffect(() => {
-    const c = fabricRef.current;
-    if (!c || !imageRef.current) return;
-
-    if (crop.enabled) {
-      const el = c.getElement();
-      el.style.touchAction = 'none';
-
-      const makeInteractive = (rect: fabric.Rect) => {
-        rect.set({
-          selectable: true, evented: true,
-          hasControls: true, hasBorders: true,
-          lockRotation: true,
-        });
-        c.setActiveObject(rect);
-        c.renderAll();
-      };
-
-      const onMouseDown = (e: fabric.TPointerEventInfo<fabric.TPointerEvent>) => {
-        if (cropRectRef.current) return;
-        const pointer = e.scenePoint || { x: 0, y: 0 };
-        isCreatingCropRef.current = true;
-        const rect = new fabric.Rect({
-          left: pointer.x, top: pointer.y,
-          width: 2, height: 2,
-          fill: 'transparent', stroke: '#215ee9',
-          strokeWidth: 2, strokeUniform: true,
-          strokeDashArray: [6, 4],
-          cornerSize: 10, cornerColor: '#215ee9',
-          cornerStrokeColor: '#fff',
-          transparentCorners: false, cornerStyle: 'circle',
-          selectable: false, evented: false,
-          hasControls: false, hasBorders: false,
-        });
-        c.add(rect);
-        cropRectRef.current = rect;
-        c.renderAll();
-      };
-
-      const onMouseMove = (e: fabric.TPointerEventInfo<fabric.TPointerEvent>) => {
-        if (!isCreatingCropRef.current || !cropRectRef.current) return;
-        const pointer = e.scenePoint || { x: 0, y: 0 };
-        const rect = cropRectRef.current;
-
-        if (crop.aspectRatio !== 'free') {
-          const ratios: Record<string, number> = { '1:1': 1, '4:3': 4 / 3, '16:9': 16 / 9 };
-          const ar = ratios[crop.aspectRatio] || null;
-          if (ar) {
-            const dx = pointer.x - rect.left!;
-            const dy = pointer.y - rect.top!;
-            const absDx = Math.abs(dx);
-            const absDy = Math.abs(dy);
-            const signX = Math.sign(dx) || 1;
-            const signY = Math.sign(dy) || 1;
-            const w = Math.max(absDx, absDy * ar);
-            const h = w / ar;
-            rect.set({
-              width: w * signX, height: h * signY,
-              left: dx > 0 ? rect.left! : rect.left! + w * signX,
-              top: dy > 0 ? rect.top! : rect.top! + h * signY,
-            });
-            c.renderAll();
-            return;
-          }
-        }
-
-        const l = Math.min(rect.left!, pointer.x);
-        const t = Math.min(rect.top!, pointer.y);
-        const w = Math.abs(pointer.x - rect.left!);
-        const h = Math.abs(pointer.y - rect.top!);
-        rect.set({ left: l, top: t, width: w, height: h });
-        c.renderAll();
-      };
-
-      const onMouseUp = () => {
-        if (!isCreatingCropRef.current || !cropRectRef.current) return;
-        isCreatingCropRef.current = false;
-        const rect = cropRectRef.current;
-        if (rect.width! < 5 || rect.height! < 5) {
-          c.remove(rect);
-          cropRectRef.current = null;
-          c.renderAll();
-          return;
-        }
-        makeInteractive(rect);
-      };
-
-      c.on('mouse:down', onMouseDown);
-      c.on('mouse:move', onMouseMove);
-      c.on('mouse:up', onMouseUp);
-
-      return () => {
-        el.style.touchAction = '';
-        c.off('mouse:down', onMouseDown);
-        c.off('mouse:move', onMouseMove);
-        c.off('mouse:up', onMouseUp);
-      };
-    } else {
-      if (cropRectRef.current) {
-        c.remove(cropRectRef.current);
-        cropRectRef.current = null;
-        c.renderAll();
-      }
-    }
-  }, [crop.enabled, crop.aspectRatio]);
-
-  useEffect(() => {
-    const rect = cropRectRef.current;
-    if (!rect || !rect.canvas || crop.aspectRatio === 'free') return;
-    const ratios: Record<string, number> = { '1:1': 1, '4:3': 4 / 3, '16:9': 16 / 9 };
-    const ratio = ratios[crop.aspectRatio] || 1;
-    const rh = rect.height!;
-    rect.set('width', rh * ratio);
-    rect.canvas.renderAll();
-  }, [crop.aspectRatio]);
+  };
 
   const applyCrop = useCallback(() => {
+    const store = useEditorStore.getState();
+    if (!store.image.dataUrl) return;
     const rect = cropRectRef.current;
-    const img = imageRef.current;
-    if (!rect || !img || !img.canvas) return;
-    const bounds = rect.getBoundingRect();
-    const imgBounds = img.getBoundingRect();
-    const relLeft = (bounds.left - imgBounds.left) / img.scaleX!;
-    const relTop = (bounds.top - imgBounds.top) / img.scaleY!;
-    const relW = bounds.width / img.scaleX!;
-    const relH = bounds.height / img.scaleY!;
-    const src = img.getSrc();
-    const tempImg = new window.Image();
-    tempImg.crossOrigin = 'anonymous';
-    tempImg.onload = () => {
-      const tc = document.createElement('canvas');
-      tc.width = relW; tc.height = relH;
-      tc.getContext('2d')!.drawImage(tempImg, relLeft, relTop, relW, relH, 0, 0, relW, relH);
-      setImage({ file: image.file, dataUrl: tc.toDataURL('image/png'), width: relW, height: relH });
-    };
-    tempImg.src = src;
-  }, [setImage, image.file]);
+    const config = buildRenderConfig(store);
+    const corners = [
+      frameToSourcePoint(rect.x, rect.y, config, FRAME),
+      frameToSourcePoint(rect.x + rect.w, rect.y, config, FRAME),
+      frameToSourcePoint(rect.x, rect.y + rect.h, config, FRAME),
+      frameToSourcePoint(rect.x + rect.w, rect.y + rect.h, config, FRAME),
+    ];
+    const xs = corners.map((p) => p.x);
+    const ys = corners.map((p) => p.y);
+    const minX = Math.max(0, Math.min(...xs));
+    const minY = Math.max(0, Math.min(...ys));
+    const maxX = Math.min(store.image.width, Math.max(...xs));
+    const maxY = Math.min(store.image.height, Math.max(...ys));
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+
+    if (width < 2 || height < 2) return;
+
+    cropSourceImage(store.image.dataUrl, minX, minY, width, height)
+      .then((next) => {
+        store.setImage(
+          { file: store.image.file, dataUrl: next.dataUrl, width: next.width, height: next.height },
+          { preserveEdits: true }
+        );
+        store.resetTransform();
+        store.setRotation(0);
+        store.setFit('contain');
+        store.setCrop({ enabled: false });
+        store.setActiveTool('select');
+      })
+      .catch(() => {
+        // Ignore crop failures – the original image stays intact.
+      });
+  }, []);
 
   useImperativeHandle(ref, () => ({ applyCrop }), [applyCrop]);
 
+  // Crop applies with Enter, but never while typing in an input.
   useEffect(() => {
+    if (!crop.enabled) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && crop.enabled) applyCrop();
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyCrop();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [crop.enabled, applyCrop]);
 
-  useEffect(() => {
-    const c = fabricRef.current;
-    if (!c) return;
-    let rafId: number;
-    const resize = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        const parent = canvasRef.current?.parentElement;
-        const canvas = fabricRef.current;
-        if (!parent || !canvas || canvas.disposed) return;
-        const w = parent.clientWidth || 800;
-        const h = parent.clientHeight || 600;
-        canvas.setDimensions({ width: w, height: h });
-        setCanvasSize(w, h);
-        setBackgroundRef.current(canvas);
-      });
-    };
-    const observer = new ResizeObserver(resize);
-    const parent = canvasRef.current?.parentElement;
-    if (parent) observer.observe(parent);
-    return () => { cancelAnimationFrame(rafId); observer.disconnect(); };
-  }, [setCanvasSize]);
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const store = useEditorStore.getState();
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left - rect.width / 2;
+    const cursorY = e.clientY - rect.top - rect.height / 2;
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -5 : 5;
-      useEditorStore.getState().setZoom(
-        Math.max(10, Math.min(500, useEditorStore.getState().zoom + delta))
+    if (e.ctrlKey || e.metaKey || store.activeTool === 'zoom') {
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const nextZoom = Math.max(10, Math.min(500, store.zoom * factor));
+      const ratio = nextZoom / store.zoom;
+      store.setZoom(nextZoom);
+      store.setPan(
+        cursorX - (cursorX - store.panX) * ratio,
+        cursorY - (cursorY - store.panY) * ratio
+      );
+    } else {
+      store.setPan(
+        store.panX - (e.shiftKey ? e.deltaY : e.deltaX),
+        store.panY - (e.shiftKey ? 0 : e.deltaY)
       );
     }
-  }, []);
+  };
+
+  const resetArtwork = () => {
+    const store = useEditorStore.getState();
+    store.resetTransform();
+    store.setRotation(0);
+  };
 
   const isTransparent = backgroundType === 'transparent';
+  const cursor =
+    activeTool === 'pan'
+      ? dragging ? 'grabbing' : 'grab'
+      : activeTool === 'crop'
+        ? 'crosshair'
+        : activeTool === 'zoom'
+          ? 'zoom-in'
+          : activeTool === 'select'
+            ? dragging ? 'grabbing' : 'grab'
+            : 'default';
+
+  const cropAr = aspectValue(crop.aspectRatio);
 
   return (
     <div
-      className="flex-1 relative overflow-hidden"
-      style={
-        isTransparent
-          ? {
-              backgroundColor: '#666666',
-              backgroundImage:
-                `linear-gradient(45deg, #555555 25%, transparent 25%), linear-gradient(-45deg, #555555 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #555555 75%), linear-gradient(-45deg, transparent 75%, #555555 75%)`,
-              backgroundSize: '20px 20px',
-              backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
-            }
-          : {}
-      }
+      ref={containerRef}
+      className="absolute inset-0 overflow-hidden select-none"
+      onPointerDown={onBackdropPointerDown}
+      onWheel={onWheel}
+      onDragOver={(e) => {
+        if (image.dataUrl) return;
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        if (image.dataUrl) return;
+        e.preventDefault();
+        setDragOver(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) void handleArtworkFile(file);
+      }}
+      style={{
+        backgroundColor: '#2a2b30',
+        backgroundImage:
+          'radial-gradient(circle, rgba(255,255,255,0.085) 1px, transparent 1px)',
+        backgroundSize: '22px 22px',
+        backgroundPosition: 'center center',
+        outline: dragOver ? '2px solid rgba(124, 58, 237, 0.65)' : undefined,
+        outlineOffset: -2,
+      }}
     >
-      <canvas
-        ref={canvasRef}
-        onWheel={handleWheel}
-        className="absolute inset-0 w-full h-full"
+      <div
+        className="absolute"
+        style={{
+          left: '50%',
+          top: '50%',
+          width: framePx,
+          height: framePx,
+          transform: `translate(-50%, -50%) translate(${panX}px, ${panY}px)`,
+          cursor,
+          touchAction: 'none',
+          boxShadow: '0 26px 70px -22px rgba(0,0,0,0.85)',
+        }}
+        onPointerDown={onFramePointerDown}
+        onDoubleClick={resetArtwork}
+      >
+        {isTransparent && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            aria-hidden="true"
+            style={{
+              backgroundColor: '#3a3b40',
+              backgroundImage:
+                'linear-gradient(45deg, #47484e 25%, transparent 25%), linear-gradient(-45deg, #47484e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #47484e 75%), linear-gradient(-45deg, transparent 75%, #47484e 75%)',
+              backgroundSize: '18px 18px',
+              backgroundPosition: '0 0, 0 9px, 9px -9px, -9px 0px',
+              clipPath: getShapeClip(iconShape, framePx),
+            }}
+          />
+        )}
+
+        {/* The rendered icon already contains background, shape, artwork, filters and effects. */}
+        {displayUrl && (
+          <img
+            src={displayUrl}
+            alt="Icon preview"
+            draggable={false}
+            className="relative z-10 size-full object-contain pointer-events-none"
+            onError={() => {
+              if (previewUrl && !previewFailed) setPreviewFailed(true);
+            }}
+          />
+        )}
+
+        {!image.dataUrl && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-[inherit] text-center transition-colors hover:bg-black/10"
+          >
+            <span className="flex size-20 items-center justify-center rounded-2xl border border-white/15 bg-black/35 shadow-xl backdrop-blur-sm">
+              {uploading ? (
+                <Loader2 className="size-8 animate-spin text-white" />
+              ) : (
+                <Plus className="size-9 text-white" />
+              )}
+            </span>
+            <span className="text-sm font-medium text-white">
+              {uploading ? 'Preparing artwork…' : 'Upload artwork'}
+            </span>
+            <span className="text-[11px] text-white/60">
+              PNG, JPG, WebP or SVG · max 2048px
+            </span>
+            {uploadError && <span className="text-[11px] text-red-300">{uploadError}</span>}
+          </button>
+        )}
+
+        {/* Frame outline */}
+        <div className="absolute inset-0 z-20 pointer-events-none ring-1 ring-white/20" />
+
+        {showGrid && image.dataUrl && (
+          <svg className="absolute inset-0 z-20 size-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+            {[12.5, 25, 37.5, 50, 62.5, 75, 87.5].map((v) => (
+              <g key={v} stroke="rgba(255, 255, 255, 0.14)" strokeWidth="0.15">
+                <line x1={v} y1={0} x2={v} y2={100} />
+                <line x1={0} y1={v} x2={100} y2={v} />
+              </g>
+            ))}
+          </svg>
+        )}
+
+        {safeArea.show && image.dataUrl && (
+          <svg className="absolute inset-0 z-20 size-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+            {safeArea.android && (
+              <circle cx="50" cy="50" r="33.33" fill="none" stroke="rgba(34, 197, 94, 0.7)" strokeWidth="0.4" strokeDasharray="1.6 1.2" />
+            )}
+            {safeArea.iOS && (
+              <rect x="10" y="10" width="80" height="80" rx="18" fill="none" stroke="rgba(59, 130, 246, 0.65)" strokeWidth="0.4" strokeDasharray="1.6 1.2" />
+            )}
+            {safeArea.web && (
+              <rect x="6" y="6" width="88" height="88" rx="2" fill="none" stroke="rgba(245, 158, 11, 0.65)" strokeWidth="0.35" strokeDasharray="1.2 1" />
+            )}
+          </svg>
+        )}
+
+        {crop.enabled && (
+          <div className="absolute inset-0 z-30">
+            {/* Dim the area outside the crop box (the box shadow leaves the crop area clear). */}
+            <div
+              className="absolute bg-transparent"
+              style={{
+                left: `${cropRect.x * 100}%`,
+                top: `${cropRect.y * 100}%`,
+                width: `${cropRect.w * 100}%`,
+                height: `${cropRect.h * 100}%`,
+                boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)',
+                border: '1px solid rgba(255,255,255,0.9)',
+                cursor: 'move',
+              }}
+              onPointerDown={(e) => onCropPointerDown(e)}
+            >
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/30" />
+                <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/30" />
+                <div className="absolute top-1/3 left-0 right-0 h-px bg-white/30" />
+                <div className="absolute top-2/3 left-0 right-0 h-px bg-white/30" />
+              </div>
+              {(['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as CropHandle[]).map((handle) => {
+                const style: React.CSSProperties = {
+                  position: 'absolute',
+                  width: 12,
+                  height: 12,
+                  background: '#fff',
+                  borderRadius: 3,
+                  border: '1px solid rgba(0,0,0,0.4)',
+                  cursor: `${handle}-resize`,
+                  touchAction: 'none',
+                };
+                if (handle.includes('n')) style.top = -6;
+                if (handle.includes('s')) style.bottom = -6;
+                if (handle.includes('w')) style.left = -6;
+                if (handle.includes('e')) style.right = -6;
+                if (handle === 'n' || handle === 's') { style.left = 'calc(50% - 6px)'; }
+                if (handle === 'e' || handle === 'w') { style.top = 'calc(50% - 6px)'; }
+                return (
+                  <div
+                    key={handle}
+                    style={style}
+                    onPointerDown={(e) => onCropPointerDown(e, handle)}
+                  />
+                );
+              })}
+              {cropAr && (
+                <div className="absolute -top-6 left-1/2 -translate-x-1/2 rounded bg-black/70 px-1.5 py-0.5 text-[9px] text-white/80">
+                  {crop.aspectRatio}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!crop.enabled && activeTool === 'select' && image.dataUrl && (
+          <>
+            {/* Rotate handle */}
+            <div
+              className="absolute left-1/2 z-30 -translate-x-1/2 -top-10 flex flex-col items-center"
+              onPointerDown={onRotatePointerDown}
+              style={{ cursor: 'grab' }}
+            >
+              <div className="size-4 rounded-full border-2 border-white bg-primary shadow" />
+              <div className="h-5 w-px bg-white/70" />
+            </div>
+            {/* Scale handle */}
+            <div
+              className="absolute z-30 -bottom-2 -right-2 size-4 rounded-full border-2 border-white bg-primary shadow"
+              onPointerDown={onScalePointerDown}
+              style={{ cursor: 'nwse-resize' }}
+              title="Drag to scale artwork"
+            />
+          </>
+        )}
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        data-upload-input
+        accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif,image/avif"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleArtworkFile(file);
+          e.currentTarget.value = '';
+        }}
       />
+
+      <div className="pointer-events-none absolute bottom-3 left-3 hidden rounded-md border border-white/10 bg-[#17181c]/85 px-2 py-1 text-[10px] text-zinc-400 backdrop-blur sm:block">
+        {image.dataUrl
+          ? `${Math.round(zoom)}% · ${iconShape} · drag artwork to reposition`
+          : 'Upload artwork to start'}
+      </div>
     </div>
   );
 });

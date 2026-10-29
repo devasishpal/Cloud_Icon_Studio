@@ -2,29 +2,19 @@
 
 import { motion } from 'framer-motion';
 import { useEditorStore } from '@/store/useEditorStore';
-import { cn, paddingStyle, shapeStyle } from '@/lib/utils';
+import { usePreviewIcon } from '@/components/previews/use-preview-icon';
+import { cn } from '@/lib/utils';
 
 interface DesktopPreviewProps {
   className?: string;
 }
 
 export function DesktopPreview({ className }: DesktopPreviewProps) {
-  const storeImage = useEditorStore((s) => s.image);
-  const padding = useEditorStore((s) => s.padding);
-  const rotation = useEditorStore((s) => s.rotation);
-  const backgroundColor = useEditorStore((s) => s.backgroundColor);
-  const backgroundType = useEditorStore((s) => s.backgroundType);
-  const gradientPreset = useEditorStore((s) => s.gradientPreset);
-  const previewPrefs = useEditorStore((s) => s.previewPreferences);
-  const image = storeImage;
+  const image = useEditorStore((s) => s.image);
+  const rendered = usePreviewIcon(256);
 
   if (!image.dataUrl) return null;
-  const src = image.dataUrl;
-  const shape = previewPrefs.iconShape;
-  const iconBg = backgroundType === 'transparent' ? 'transparent'
-    : backgroundType === 'gradient' && gradientPreset
-      ? `linear-gradient(${gradientPreset.angle}deg, ${gradientPreset.colors[0]}, ${gradientPreset.colors[1]})`
-      : backgroundColor;
+  const src = rendered ?? image.dataUrl;
 
   return (
     <motion.div
@@ -48,7 +38,6 @@ export function DesktopPreview({ className }: DesktopPreviewProps) {
                         src={src}
                         alt="App icon"
                         className="size-8 object-contain"
-                        style={{ ...paddingStyle(padding), rotate: `${rotation}deg`, ...shapeStyle(shape), backgroundColor: iconBg }}
                       />
                     ) : (
                       <div className="size-6 rounded-md bg-zinc-600/50" />
@@ -61,8 +50,7 @@ export function DesktopPreview({ className }: DesktopPreviewProps) {
               <img
                 src={src}
                 alt="Desktop icon"
-                className="size-16 object-contain shadow-lg rounded-xl"
-                style={{ ...paddingStyle(padding), rotate: `${rotation}deg`, ...shapeStyle(shape), backgroundColor: iconBg }}
+                className="size-16 object-contain drop-shadow-lg"
               />
             </div>
           </div>
@@ -73,15 +61,11 @@ export function DesktopPreview({ className }: DesktopPreviewProps) {
             <span className="text-xs text-muted-foreground">Windows Taskbar</span>
             <div className="flex items-center gap-2 bg-zinc-800/80 rounded-lg p-2">
               <div className="size-3 rounded-sm bg-blue-500" />
-              <div
-                className="size-6 rounded-md overflow-hidden shadow-sm"
-                style={{ ...shapeStyle(shape), backgroundColor: iconBg }}
-              >
+              <div className="size-6 overflow-hidden">
                 <img
                   src={src}
                   alt="Windows icon"
                   className="size-full object-contain"
-                  style={{ ...paddingStyle(padding), rotate: `${rotation}deg` }}
                 />
               </div>
               <div className="size-3 rounded-sm bg-zinc-600" />
@@ -93,15 +77,11 @@ export function DesktopPreview({ className }: DesktopPreviewProps) {
           <div className="rounded-xl border border-border/50 bg-card/50 p-4 space-y-3">
             <span className="text-xs text-muted-foreground">Desktop Shortcut</span>
             <div className="flex items-center gap-3">
-              <div
-                className="size-12 rounded-xl overflow-hidden shadow-lg"
-                style={{ ...shapeStyle(shape), backgroundColor: iconBg }}
-              >
+              <div className="size-12 overflow-hidden">
                 <img
                   src={src}
                   alt="Shortcut"
-                  className="size-full object-contain"
-                  style={{ ...paddingStyle(padding), rotate: `${rotation}deg` }}
+                  className="size-full object-contain drop-shadow-lg"
                 />
               </div>
               <div>

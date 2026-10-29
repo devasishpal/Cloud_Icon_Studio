@@ -1,22 +1,52 @@
 {
+  "id": "/",
   "name": "CloudIcon Studio",
   "short_name": "CloudIcon",
-  "description": "Generate perfect app icons for Android, iOS & Web. Free, fast, and runs entirely in your browser.",
-  "start_url": "/",
+  "description": "Generate perfect app icons for Android, iOS, Web & Desktop. Free, fast, and runs entirely in your browser.",
+  "start_url": "/editor",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#09090B",
   "theme_color": "#7C3AED",
-  "orientation": "portrait",
+  "orientation": "any",
   "scope": "/",
   "categories": ["design", "utilities", "productivity"],
   "lang": "en",
   "dir": "ltr",
   "prefer_related_applications": false,
   "icons": [
-    { "src": "/icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
-  "splash_pages": null,
-  "edge_side_panel": { "preferred_width": 480 }
+  "shortcuts": [
+    {
+      "name": "Open Icon Editor",
+      "short_name": "Editor",
+      "description": "Open the CloudIcon Studio editor",
+      "url": "/editor",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
 }

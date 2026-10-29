@@ -103,11 +103,14 @@ export async function generateMetadata(): Promise<Metadata> {
     manifest: "/manifest.json",
     icons: {
       icon: [
-        { url: "/icon.png", type: "image/png" },
         { url: "/favicon.ico", sizes: "any" },
+        { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
+        { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+        { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+        { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
       ],
-      apple: [{ url: "/icon.png", sizes: "any", type: "image/png" }],
-      other: [{ rel: "mask-icon", url: "/icon.png", color: "#215ee9" }],
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+      other: [{ rel: "mask-icon", url: "/safari-pinned-tab.svg", color: "#7C3AED" }],
     },
     appleWebApp: {
       capable: true,
@@ -163,31 +166,48 @@ export default function RootLayout({
           {children}
           <CookieConsent />
         </ThemeProvider>
-        <Script
-          id="sw-register"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js').catch(() => {});
-                });
-              }
-            `,
-          }}
-        />
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-064B1NNVF3"
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-064B1NNVF3');
-          `}
-        </Script>
+        {process.env.NODE_ENV === 'production' ? (
+          <Script
+            id="sw-register"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                if ('serviceWorker' in navigator) {
+                  window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js').catch(() => {});
+                  });
+                }
+              `,
+            }}
+          />
+        ) : (
+          <Script
+            id="sw-dev-cleanup"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                // Turbopack reuses dev chunk names. A service worker that caches
+                // them would keep serving yesterday's modules (the "x is not a
+                // function" class of errors), so development is always offline-free.
+                if ('serviceWorker' in navigator) {
+                  (async () => {
+                    try {
+                      const registrations = await navigator.serviceWorker.getRegistrations();
+                      await Promise.all(registrations.map((r) => r.unregister()));
+                      const keys = await caches.keys();
+                      await Promise.all(keys.map((key) => caches.delete(key)));
+                      const wasControlled = Boolean(navigator.serviceWorker.controller);
+                      if (wasControlled && !sessionStorage.getItem('cloudicon-sw-cleaned')) {
+                        sessionStorage.setItem('cloudicon-sw-cleaned', '1');
+                        location.reload();
+                      }
+                    } catch (error) {}
+                  })();
+                }
+              `,
+            }}
+          />
+        )}
       </body>
     </html>
   );

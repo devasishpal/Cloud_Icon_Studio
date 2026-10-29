@@ -6,7 +6,8 @@ import { BrowserMockup } from '@/components/previews/browser-mockup';
 import { FaviconPreview } from '@/components/previews/favicon-preview';
 import { NavbarPreview } from '@/components/previews/navbar-preview';
 import { PwaPreview } from '@/components/previews/pwa-preview';
-import { cn, paddingStyle, shapeStyle } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { usePreviewIcon } from '@/components/previews/use-preview-icon';
 import { BROWSER_PRESETS } from '@/lib/constants';
 
 interface WebPreviewProps {
@@ -15,20 +16,11 @@ interface WebPreviewProps {
 
 export function WebPreview({ className }: WebPreviewProps) {
   const image = useEditorStore((s) => s.image);
-  const padding = useEditorStore((s) => s.padding);
-  const rotation = useEditorStore((s) => s.rotation);
-  const backgroundColor = useEditorStore((s) => s.backgroundColor);
-  const backgroundType = useEditorStore((s) => s.backgroundType);
-  const gradientPreset = useEditorStore((s) => s.gradientPreset);
   const previewPrefs = useEditorStore((s) => s.previewPreferences);
+  const rendered = usePreviewIcon(256);
 
   if (!image.dataUrl) return null;
-  const src = image.dataUrl;
-  const shape = previewPrefs.iconShape;
-  const iconBg = backgroundType === 'transparent' ? 'transparent'
-    : backgroundType === 'gradient' && gradientPreset
-      ? `linear-gradient(${gradientPreset.angle}deg, ${gradientPreset.colors[0]}, ${gradientPreset.colors[1]})`
-      : backgroundColor;
+  const src = rendered ?? image.dataUrl;
 
   return (
     <motion.div
@@ -44,15 +36,11 @@ export function WebPreview({ className }: WebPreviewProps) {
             url="https://example.com"
           >
             <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-200 dark:border-zinc-800">
-              <div
-                className="size-4 rounded overflow-hidden shrink-0"
-                style={{ ...shapeStyle(shape), backgroundColor: iconBg }}
-              >
+              <div className="size-4 overflow-hidden shrink-0">
                 <img
                   src={src}
                   alt="Favicon"
                   className="size-full object-contain"
-                  style={{ ...paddingStyle(padding), rotate: `${rotation}deg` }}
                 />
               </div>
               <span className="text-xs text-zinc-500 truncate flex-1">example.com</span>
@@ -62,15 +50,11 @@ export function WebPreview({ className }: WebPreviewProps) {
             </div>
             <div className="p-6 flex items-center justify-center min-h-[120px] bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-900">
               <div className="text-center">
-                <div
-                  className="size-12 rounded-xl mx-auto overflow-hidden shadow-md mb-2"
-                  style={{ ...shapeStyle(shape), backgroundColor: iconBg }}
-                >
+                <div className="size-12 mx-auto overflow-hidden drop-shadow-md mb-2">
                   <img
                     src={src}
                     alt="Logo"
                     className="size-full object-contain"
-                    style={{ ...paddingStyle(padding), rotate: `${rotation}deg` }}
                   />
                 </div>
                 <p className="text-xs text-zinc-500">Your website with the custom favicon</p>

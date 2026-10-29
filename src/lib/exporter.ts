@@ -1,9 +1,19 @@
 'use client';
 
-import type { ImageInfo, NamingStyle, BackgroundType, GradientPreset, IconShape } from '@/types';
-import type { ExportPreset } from './processor';
-import { runExportPreset } from './processor';
-import { generateReadme, packZip, getCompressionLevel } from './zip-utils';
+import type {
+  BackgroundType,
+  GradientPreset,
+  IconShape,
+  ImageAdjustments,
+  ImageEffects,
+  ImageFit,
+  ImageInfo,
+  ImageTransform,
+  NamingStyle,
+} from '@/types';
+import type { ExportPreset, RenderSettings } from './processor';
+import { buildExportPlan, executeExportPlan } from './processor';
+import { packZip } from './zip-utils';
 
 export interface ExportTask {
   image: ImageInfo;
@@ -14,6 +24,10 @@ export interface ExportTask {
   backgroundType: BackgroundType;
   gradientPreset: GradientPreset | null;
   iconShape: IconShape;
+  fit: ImageFit;
+  transform: ImageTransform;
+  adjustments: ImageAdjustments;
+  effects: ImageEffects;
   compressionLevel: 'low' | 'balanced' | 'maximum';
   exportName: string;
   includeREADME: boolean;
@@ -21,6 +35,12 @@ export interface ExportTask {
   includeSource: boolean;
   addTimestamp: boolean;
   namingStyle: NamingStyle;
+}
+
+export interface ExportResult {
+  size: number;
+  fileCount: number;
+  filename: string;
 }
 
 export type ExportCallback = (status: {
@@ -32,57 +52,64 @@ export type ExportCallback = (status: {
   error?: string;
 }) => void;
 
-export async function runExport(task: ExportTask, onStatus: ExportCallback) {
+export async function runExport(
+  task: ExportTask,
+  onStatus: ExportCallback
+): Promise<ExportResult | null> {
   const startTime = Date.now();
 
   try {
     onStatus({
-      stage: 'preparing', progress: 0, total: 1,
+      stage: 'preparing',
+      progress: 0,
+      total: 1,
       message: 'Preparing export pipeline...',
     });
 
-    const preset = task.preset;
     const filename = buildFilename(task);
+    const settings: RenderSettings = {
+      image: task.image,
+      padding: task.padding,
+      rotation: task.rotation,
+      backgroundColor: task.backgroundColor,
+      backgroundType: task.backgroundType,
+      gradientPreset: task.gradientPreset,
+      iconShape: task.iconShape,
+      fit: task.fit,
+      transform: task.transform,
+      adjustments: task.adjustments,
+      effects: task.effects,
+    };
 
-    await sleep(100);
+    const plan = buildExportPlan(task.preset, settings, task.exportName);
 
     onStatus({
-      stage: 'rendering', progress: 0, total: 1,
-      message: 'Rendering master canvas...',
+      stage: 'generating',
+      progress: 0,
+      total: plan.total,
+      message: `Generating ${plan.files.length} files...`,
     });
 
-    onStatus({
-      stage: 'generating', progress: 0, total: 1,
-      message: `Generating ${preset} icons...`,
+    const result = await executeExportPlan(plan, (progress) => {
+      onStatus({
+        stage: 'generating',
+        progress: progress.done,
+        total: progress.total,
+        message: `${progress.platform}: ${progress.step}`,
+        platform: progress.platform,
+      });
     });
 
-    const result = await runExportPreset(
-      preset,
-      task.image,
-      task.padding,
-      task.backgroundColor,
-      task.rotation,
-      task.backgroundType,
-      task.gradientPreset,
-      task.iconShape,
-      (t) => {
-        onStatus({
-          stage: 'generating',
-          progress: t.done,
-          total: t.total,
-          message: `${t.platform}: ${t.step}`,
-          platform: t.platform,
-        });
-      }
-    );
+    const source = await buildSource(task);
 
     onStatus({
-      stage: 'packaging', progress: 0,
-      total: result.files.length + result.texts.length + (task.includeREADME ? 1 : 0),
+      stage: 'packaging',
+      progress: 0,
+      total: plan.total + (task.includeREADME ? 1 : 0) + (source ? 1 : 0),
       message: 'Packaging ZIP archive...',
     });
 
-    const { blob, size } = await packZip(
+    const packed = await packZip(
       result.files,
       result.texts,
       {
@@ -91,6 +118,11 @@ export async function runExport(task: ExportTask, onStatus: ExportCallback) {
         includeREADME: task.includeREADME,
         includeManifests: task.includeManifests,
         includeSource: task.includeSource,
+        source,
+        appName: task.exportName,
+        preset: task.preset,
+        backgroundColor: task.backgroundColor,
+        transparent: task.backgroundType === 'transparent',
       },
       (current, total) => {
         onStatus({
@@ -103,19 +135,28 @@ export async function runExport(task: ExportTask, onStatus: ExportCallback) {
     );
 
     onStatus({
-      stage: 'downloading', progress: 1, total: 1,
+      stage: 'downloading',
+      progress: 1,
+      total: 1,
       message: 'Starting download...',
     });
 
     const { saveAs } = await import('file-saver');
-    saveAs(blob, `${filename}.zip`);
+    saveAs(packed.blob, `${filename}.zip`);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    const sizeLabel = packed.size >= 1024 * 1024
+      ? `${(packed.size / 1024 / 1024).toFixed(1)} MB`
+      : `${Math.max(1, Math.round(packed.size / 1024))} KB`;
 
     onStatus({
-      stage: 'done', progress: 1, total: 1,
-      message: `Exported in ${elapsed}s — ${(size / 1024 / 1024).toFixed(1)} MB`,
+      stage: 'done',
+      progress: 1,
+      total: packed.fileCount,
+      message: `Exported in ${elapsed}s — ${sizeLabel} · ${packed.fileCount} files`,
     });
+
+    return { size: packed.size, fileCount: packed.fileCount, filename };
   } catch (err) {
     onStatus({
       stage: 'error',
@@ -124,7 +165,27 @@ export async function runExport(task: ExportTask, onStatus: ExportCallback) {
       message: 'Export failed',
       error: err instanceof Error ? err.message : 'Unknown error',
     });
+    return null;
   }
+}
+
+async function buildSource(task: ExportTask): Promise<{ name: string; blob: Blob } | null> {
+  if (!task.includeSource || !task.image.dataUrl) return null;
+
+  if (task.image.file) {
+    return { name: `source/${task.image.file.name}`, blob: task.image.file };
+  }
+
+  const response = await fetch(task.image.dataUrl);
+  const blob = await response.blob();
+  const ext = blob.type === 'image/jpeg'
+    ? 'jpg'
+    : blob.type === 'image/webp'
+      ? 'webp'
+      : blob.type === 'image/svg+xml'
+        ? 'svg'
+        : 'png';
+  return { name: `source/original.${ext}`, blob };
 }
 
 function buildFilename(task: ExportTask): string {
@@ -136,8 +197,4 @@ function buildFilename(task: ExportTask): string {
   if (task.namingStyle === 'lowercase') name = name.toLowerCase();
   else if (task.namingStyle === 'uppercase') name = name.toUpperCase();
   return name;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
 }

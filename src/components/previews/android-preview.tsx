@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { useEditorStore } from '@/store/useEditorStore';
 import { DeviceMockup } from '@/components/previews/device-mockup';
 import { MonochromePreview } from '@/components/previews/monochrome-preview';
-import { cn, paddingStyle, shapeStyle } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { usePreviewIcon } from '@/components/previews/use-preview-icon';
 
 interface AndroidPreviewProps {
   className?: string;
@@ -102,23 +103,14 @@ function LauncherGrid({ children, wallpaperImage }: { children: React.ReactNode;
 
 export function AndroidPreview({ className }: AndroidPreviewProps) {
   const image = useEditorStore((s) => s.image);
-  const padding = useEditorStore((s) => s.padding);
-  const rotation = useEditorStore((s) => s.rotation);
-  const backgroundColor = useEditorStore((s) => s.backgroundColor);
-  const backgroundType = useEditorStore((s) => s.backgroundType);
-  const gradientPreset = useEditorStore((s) => s.gradientPreset);
   const previewPrefs = useEditorStore((s) => s.previewPreferences);
-  const shape = previewPrefs.iconShape;
+  const rendered = usePreviewIcon(256);
 
   if (!image.dataUrl) return null;
-  const src = image.dataUrl;
+  const src = rendered ?? image.dataUrl;
 
   const wallpaperImage = previewPrefs.androidWallpaper;
   const deviceStyle = previewPrefs.deviceStyle === 'samsung' ? 'samsung' : 'pixel';
-  const iconBg = backgroundType === 'transparent' ? 'transparent'
-    : backgroundType === 'gradient' && gradientPreset
-      ? `linear-gradient(${gradientPreset.angle}deg, ${gradientPreset.colors[0]}, ${gradientPreset.colors[1]})`
-      : backgroundColor;
 
   return (
     <motion.div
@@ -128,15 +120,11 @@ export function AndroidPreview({ className }: AndroidPreviewProps) {
     >
       <DeviceMockup style={deviceStyle} label="Home Screen" dark={previewPrefs.theme === 'dark'}>
         <LauncherGrid wallpaperImage={wallpaperImage}>
-          <div
-            className="size-8 overflow-hidden shadow-sm"
-            style={{ ...shapeStyle(shape), backgroundColor: iconBg }}
-          >
+          <div className="size-8 overflow-hidden drop-shadow-sm">
             <img
               src={src}
               alt="App icon"
               className="size-full object-contain"
-              style={{ ...paddingStyle(padding), rotate: `${rotation}deg` }}
             />
           </div>
         </LauncherGrid>
@@ -145,11 +133,8 @@ export function AndroidPreview({ className }: AndroidPreviewProps) {
       <div className="rounded-lg border border-border/50 bg-card/50 p-3">
         <span className="text-[10px] text-muted-foreground">Play Store</span>
         <div className="flex items-center gap-2 mt-2">
-          <div
-            className="size-8 overflow-hidden shadow shrink-0"
-            style={{ ...shapeStyle(shape), backgroundColor: iconBg }}
-          >
-            <img src={src} alt="" className="size-full object-contain" style={{ padding: `${padding}%`, rotate: `${rotation}deg` }} />
+          <div className="size-8 overflow-hidden drop-shadow shrink-0">
+            <img src={src} alt="" className="size-full object-contain" />
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-medium truncate">CloudIcon</p>

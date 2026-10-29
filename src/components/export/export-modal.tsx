@@ -5,12 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, Smartphone, Apple, Globe, Monitor, FileDown,
   Download, X, ChevronRight, FileText, FolderTree, Settings,
-  Zap, Sliders, Clock, CheckCircle2, AlertCircle,
+  Zap, Sliders, Clock, CheckCircle2, AlertCircle, Images, Image as ImageIcon,
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { runExport, type ExportTask } from '@/lib/exporter';
-import { EXPORT_PRESETS, type ExportPreset } from '@/lib/processor';
-import { estimateZipSize } from '@/lib/zip-utils';
+import { EXPORT_PRESETS, estimateExport, type ExportPreset } from '@/lib/processor';
 import { formatFileSize } from '@/lib/helpers';
 import { cn } from '@/lib/utils';
 import type { ExportEntry } from '@/types';
@@ -18,6 +17,7 @@ import type { ExportEntry } from '@/types';
 const presetIcons: Record<string, typeof Package> = {
   full: Package, android: Smartphone, ios: Apple,
   web: Globe, pwa: Globe, desktop: Monitor, minimal: FileDown,
+  splash: Images, social: ImageIcon,
 };
 
 const stageMessages: Record<string, string> = {
@@ -59,15 +59,58 @@ export function ExportModal() {
     stage: string; progress: number; total: number; message: string; error?: string;
   } | null>(null);
 
-  const [estimatedSize, setEstimatedSize] = useState(0);
+  const [estimate, setEstimate] = useState<{ size: number; fileCount: number }>({
+    size: 0,
+    fileCount: 0,
+  });
 
   useEffect(() => {
-    if (modalOpen) {
-      const compressionLevel = compression;
-      const est = estimateZipSize([], [], compressionLevel);
-      setEstimatedSize(est + 50000);
-    }
-  }, [modalOpen, compression, preset]);
+    if (!modalOpen || !image.dataUrl) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const next = await estimateExport(
+          preset as ExportPreset,
+          {
+            image,
+            padding,
+            rotation,
+            backgroundColor,
+            backgroundType: store.backgroundType,
+            gradientPreset: store.gradientPreset,
+            iconShape: store.previewPreferences.iconShape,
+            fit: store.fit,
+            transform: store.transform,
+            adjustments: store.adjustments,
+            effects: store.effects,
+          },
+          exportName
+        );
+        if (!cancelled) setEstimate(next);
+      } catch {
+        // Keep the previous estimate if a sample render fails.
+      }
+    }, 220);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    modalOpen,
+    preset,
+    image,
+    padding,
+    rotation,
+    backgroundColor,
+    exportName,
+    store.backgroundType,
+    store.gradientPreset,
+    store.previewPreferences.iconShape,
+    store.fit,
+    store.transform,
+    store.adjustments,
+    store.effects,
+  ]);
 
   const handleExport = useCallback(async () => {
     if (!image.dataUrl) return;
@@ -81,31 +124,33 @@ export function ExportModal() {
       backgroundType: store.backgroundType,
       gradientPreset: store.gradientPreset,
       iconShape: store.previewPreferences.iconShape,
+      fit: store.fit,
+      transform: store.transform,
+      adjustments: store.adjustments,
+      effects: store.effects,
       compressionLevel: compression,
       exportName,
       includeREADME,
       includeManifests,
       includeSource,
       addTimestamp,
-      namingStyle: 'lowercase',
+      namingStyle: store.namingStyle,
     };
 
-    await runExport(task, (status) => {
-      setProgress(status);
+    const result = await runExport(task, setProgress);
 
-      if (status.stage === 'done') {
-        const entry: ExportEntry = {
-          id: Date.now().toString(),
-          date: new Date().toLocaleString(),
-          preset,
-          name: exportName,
-          size: 0,
-          fileCount: status.total,
-          compressionLevel: compression,
-        };
-        store.addExportEntry(entry);
-      }
-    });
+    if (result) {
+      const entry: ExportEntry = {
+        id: Date.now().toString(),
+        date: new Date().toLocaleString(),
+        preset,
+        name: result.filename,
+        size: result.size,
+        fileCount: result.fileCount,
+        compressionLevel: compression,
+      };
+      store.addExportEntry(entry);
+    }
   }, [image, preset, padding, backgroundColor, rotation, compression, exportName,
     includeREADME, includeManifests, includeSource, addTimestamp, store]);
 
@@ -299,7 +344,13 @@ export function ExportModal() {
                   <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <FolderTree className="size-3.5" />
-                      Estimated ZIP size: <span className="font-medium text-foreground">{formatFileSize(estimatedSize)}</span>
+                      Estimated ZIP size:{' '}
+                      <span className="font-medium text-foreground">
+                        {estimate.size ? formatFileSize(estimate.size) : 'Calculating…'}
+                      </span>
+                      {estimate.fileCount > 0 && (
+                        <span className="text-muted-foreground/70">· {estimate.fileCount} files</span>
+                      )}
                     </div>
                     <button
                       onClick={handleExport}

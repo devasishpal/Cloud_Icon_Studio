@@ -1,6 +1,14 @@
+import type {
+  ImageTransform,
+  ImageAdjustments,
+  ImageEffects,
+  ImageFit,
+} from '@/types';
+
 export const APP_NAME = 'CloudIcon Studio';
 export const APP_TAGLINE = 'Generate Perfect App Icons for Android, iOS & Web';
 export const APP_DESCRIPTION = 'Upload once. Instantly generate launcher icons, favicons, mipmaps, adaptive icons, and complete export packs.';
+export const GITHUB_URL = 'https://github.com/devasishpal/Cloud_Icon_Studio';
 
 export const ACCEPTED_FORMATS = {
   'image/png': ['.png'],
@@ -17,8 +25,15 @@ export const ANDROID_SIZES = [
   { name: 'xhdpi', size: 96 },
   { name: 'xxhdpi', size: 144 },
   { name: 'xxxhdpi', size: 192 },
-  { name: 'adaptive-foreground', size: 108 },
-  { name: 'adaptive-background', size: 108 },
+];
+
+export const ANDROID_DENSITIES = [
+  { name: 'ldpi', scale: 0.75 },
+  { name: 'mdpi', scale: 1 },
+  { name: 'hdpi', scale: 1.5 },
+  { name: 'xhdpi', scale: 2 },
+  { name: 'xxhdpi', scale: 3 },
+  { name: 'xxxhdpi', scale: 4 },
 ];
 
 export const iOS_SIZES = [
@@ -40,6 +55,7 @@ export const WEB_SIZES = [
   { name: 'apple-touch-icon', size: 180 },
   { name: 'android-chrome-192', size: 192 },
   { name: 'android-chrome-512', size: 512 },
+  { name: 'maskable-512', size: 512 },
 ];
 
 export const NAV_ITEMS = [
@@ -75,6 +91,9 @@ export const GRADIENT_PRESETS = [
   { name: 'Emerald', colors: ['#10B981', '#059669'] as [string, string], angle: 135 },
   { name: 'Rose', colors: ['#EC4899', '#8B5CF6'] as [string, string], angle: 135 },
   { name: 'Midnight', colors: ['#1E293B', '#0F172A'] as [string, string], angle: 135 },
+  { name: 'Candy', colors: ['#F472B6', '#38BDF8'] as [string, string], angle: 120 },
+  { name: 'Citrus', colors: ['#FDE047', '#F97316'] as [string, string], angle: 160 },
+  { name: 'Aurora', colors: ['#22D3EE', '#4ADE80'] as [string, string], angle: 45 },
 ];
 
 export const ANDROID_SAFE_ZONE = { outerRadius: 0.45, innerRadius: 0.33 };
@@ -103,8 +122,9 @@ export const BROWSER_PRESETS = {
 export const ICON_SHAPES = [
   { label: 'Circle', value: 'circle' as const },
   { label: 'Squircle', value: 'squircle' as const },
-  { label: 'Rounded Square', value: 'rounded-square' as const },
+  { label: 'Rounded', value: 'rounded-square' as const },
   { label: 'Teardrop', value: 'teardrop' as const },
+  { label: 'Square', value: 'square' as const },
 ];
 
 export const DEFAULT_PREVIEW_PREFERENCES = {
@@ -118,3 +138,47 @@ export const DEFAULT_PREVIEW_PREFERENCES = {
   androidWallpaper: '/wallpapers/android-stock.webp',
   iosWallpaper: '/wallpapers/ios-stock-orange.webp',
 };
+
+export const DEFAULT_TRANSFORM: ImageTransform = {
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+};
+
+export const DEFAULT_ADJUSTMENTS: ImageAdjustments = {
+  brightness: 100,
+  contrast: 100,
+  saturation: 100,
+  hue: 0,
+  blur: 0,
+  grayscale: 0,
+  opacity: 100,
+};
+
+export const DEFAULT_EFFECTS: ImageEffects = {
+  shadow: 0,
+  shadowColor: '#000000',
+  borderWidth: 0,
+  borderColor: '#ffffff',
+  flipX: false,
+  flipY: false,
+};
+
+export const DEFAULT_FIT: ImageFit = 'contain';
+
+/** Common iOS launch-screen sizes (portrait + landscape). */
+export const SPLASH_SIZES = [
+  { name: 'splash-iphone-1170x2532', width: 1170, height: 2532 },
+  { name: 'splash-iphone-2532x1170', width: 2532, height: 1170 },
+  { name: 'splash-iphone-1242x2688', width: 1242, height: 2688 },
+  { name: 'splash-iphone-2688x1242', width: 2688, height: 1242 },
+  { name: 'splash-ipad-2048x2732', width: 2048, height: 2732 },
+  { name: 'splash-ipad-2732x2048', width: 2732, height: 2048 },
+];
+
+/** Open Graph / social card sizes. */
+export const SOCIAL_SIZES = [
+  { name: 'og-image', width: 1200, height: 630 },
+  { name: 'twitter-card', width: 1200, height: 600 },
+  { name: 'social-square', width: 1080, height: 1080 },
+];

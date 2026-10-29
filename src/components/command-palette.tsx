@@ -19,7 +19,6 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const router = useRouter();
-  const image = useEditorStore((s) => s.image);
 
   const commands: Command[] = [
     { id: 'upload', label: 'Upload Image', description: 'Upload a new app icon', shortcut: '⌘O', icon: '↑', action: () => document.querySelector<HTMLInputElement>('[data-upload-input]')?.click() },
@@ -52,7 +51,10 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', handler);
   }, [open]);
 
-  useEffect(() => { setSelectedIndex(0); }, [query]);
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    setSelectedIndex(0);
+  };
 
   const execute = useCallback((cmd: Command) => {
     setOpen(false);
@@ -91,7 +93,7 @@ export function CommandPalette() {
               <input
                 autoFocus
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => handleQueryChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Search commands..."
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"

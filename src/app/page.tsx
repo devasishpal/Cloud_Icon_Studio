@@ -3,20 +3,19 @@
 import { motion } from 'framer-motion';
 import { PageLayout } from '@/components/layout/page-layout';
 import { HeroSection } from '@/components/hero-section';
+import { ShowcaseSection } from '@/components/home/showcase-section';
 import {
-  Smartphone, Apple, Globe, Monitor, Palette, Shapes, Zap, Crop, RotateCw,
-  Download, Sparkles, Shield, Server, Users, Layers, CheckCircle, ChevronDown,
-  Star, Code, Image, Package, ArrowRight, Grid, Lock, FileArchive, RefreshCw,
-  Eye, Sliders, Grip, Ruler
+  Smartphone, Apple, Globe, Monitor, Sparkles, Shield, Server, Users, Layers,
+  ChevronDown, Package, ArrowRight, Grid, Lock, Eye, Sliders, Wand2
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 const stats = [
-  { icon: Layers, value: '7+', label: 'Platforms Supported' },
-  { icon: Image, value: '50+', label: 'Icon Sizes Generated' },
+  { icon: Layers, value: '4', label: 'Platforms Covered' },
+  { icon: Package, value: '95+', label: 'Files in Full Pack' },
   { icon: Server, value: '100%', label: 'Client-Side Processing' },
-  { icon: Shield, value: 'Zero', label: 'Server Uploads' },
+  { icon: Shield, value: '0', label: 'Artwork Uploads' },
 ];
 
 const useCases = [
@@ -45,33 +44,33 @@ const useCases = [
 const whyChoose = [
   {
     icon: Lock,
-    title: 'Privacy First — Zero Server Uploads',
-    desc: 'Your images never leave your device. All processing happens in your browser using the Canvas API. No servers, no storage, no data collection. Your artwork stays yours.',
+    title: 'Privacy First — Zero Artwork Uploads',
+    desc: 'Your images never leave your device. Rendering, cropping, background removal, and ZIP creation all run in your browser. There is no image server, no account, and no artwork storage.',
   },
   {
-    icon: Zap,
-    title: 'Blazing Fast — Instant Export',
-    desc: 'GPU-accelerated rendering powered by Fabric.js means your icons generate instantly. No waiting in queues, no processing delays. Upload, tweak, export in under a minute.',
+    icon: Wand2,
+    title: 'Local AI Background Removal',
+    desc: 'Remove backgrounds with a bundled U2Net model running on-device via WebAssembly, or use the precise chroma-key tool for flat-colour logos. Both are fully offline-capable.',
   },
   {
     icon: Grid,
     title: 'Every Size, Every Format',
-    desc: 'From Android mipmap mdpi to iOS App Store icons, from Web favicons to Desktop ICO files — we generate every required size and format. One upload, complete coverage.',
+    desc: 'Android launcher and adaptive icons, all 19 iOS AppIcon sizes, web favicons and PWA assets, Windows ICO, macOS ICNS, and Linux PNGs — 95+ files in the full pack.',
   },
   {
     icon: Package,
     title: 'Structured ZIP Exports',
-    desc: 'Your icons are packaged in a logically organized ZIP archive with proper folder hierarchy for each platform. Ready to drop directly into your project.',
+    desc: 'Files are organized into platform-ready folders such as android/mipmap-*, iOS/AppIcon.appiconset, web/, and desktop/, with manifests and Contents.json included.',
   },
   {
     icon: Eye,
     title: 'Real-Time Device Previews',
-    desc: 'See exactly how your icon looks on actual device mockups before exporting. Toggle between Android, iOS, Web, and Desktop with live updates as you edit.',
+    desc: 'See the same renderer output on Android, iOS, Web, and Desktop mockups. Every edit updates the existing preview section live, with no separate preview mode.',
   },
   {
     icon: Sliders,
     title: 'Full Editing Toolset',
-    desc: 'Crop, rotate, adjust padding, change backgrounds, apply shape masks — all with instant visual feedback. The intuitive controls give you precision without complexity.',
+    desc: 'Crop, rotate, zoom, pan, padding, fit modes, solid/gradient/transparent backgrounds, five shape masks, adjustments, shadows, borders, and flips — with undo and redo.',
   },
 ];
 
@@ -80,52 +79,68 @@ const exportDetails = [
     platform: 'Android',
     icon: Smartphone,
     color: '#3DDC84',
-    sizes: '48×48 (mdpi), 72×72 (hdpi), 96×96 (xhdpi), 144×144 (xxhdpi), 192×192 (xxxhdpi), adaptive icons (foreground + background), Play Store (512×512)',
+    sizes: 'Launcher + round icons at 36×36 (ldpi), 48×48 (mdpi), 72×72 (hdpi), 96×96 (xhdpi), 144×144 (xxhdpi), 192×192 (xxxhdpi); adaptive foreground/background at 108–432; monochrome layer at 432; notification icons 18–96; 512×512 Play Store icon; adaptive-icon XML and background colour resource.',
   },
   {
     platform: 'iOS',
     icon: Apple,
     color: '#007AFF',
-    sizes: '20×20 (Notification), 29×29 (Settings), 40×40 (Spotlight), 58×58 (Settings@2x), 60×60 (iPhone), 76×76 (iPad), 80×80 (Spotlight@2x), 87×87 (Settings@3x), 1024×1024 (App Store)',
+    sizes: '19 AppIcon PNGs from 20×20 to 1024×1024 covering iPhone, iPad, Notification, Settings, Spotlight, and App Store, plus a correctly formatted Contents.json asset catalog.',
   },
   {
     platform: 'Web',
     icon: Globe,
     color: '#4285F4',
-    sizes: '16×16 (favicon), 32×32, 48×48, 64×64, 96×96, 128×128, 192×192 (PWA), 256×256, 512×512 (PWA), apple-touch-icon, mask-icon, browserconfig XML',
+    sizes: '16/32/48 favicons, 180×180 apple-touch-icon, 192×192 and 512×512 PWA icons, 512×512 maskable icon, 150×150 Windows tile, multi-resolution favicon.ico (16/32/48/64), Safari pinned-tab SVG, site.webmanifest, and browserconfig.xml.',
   },
   {
     platform: 'Desktop',
     icon: Monitor,
     color: '#0078D4',
-    sizes: 'Windows: 16×16, 32×32, 48×48, 256×256 (ICO). macOS: 16×16, 32×32, 64×64, 128×128, 256×256, 512×512, 1024×1024 (ICNS). Linux: 48×48, 256×256 (PNG)',
+    sizes: 'Windows tiles at 16, 24, 32, 48, 64, 128, 256 and 150; multi-resolution app.ico (16–256); macOS app.icns (16–1024); Linux hicolor PNGs at 16, 32, 48, 64, 128, 256, and 512.',
   },
 ];
 
 const faqs = [
   {
     q: 'What file formats can I upload?',
-    a: 'You can upload PNG, JPG, WEBP, and SVG files. For best results, use a square source image at least 1024×1024px.',
+    a: 'PNG, JPG, WebP, and SVG are accepted, up to 25 MB per file. Large bitmaps are downscaled to a 2048px long edge for consistent rendering and export. A square source of 1024×1024 or larger gives the best results.',
   },
   {
     q: 'Are my images uploaded to a server?',
-    a: 'No. Everything runs entirely in your browser using Canvas API. Your image never leaves your device.',
+    a: 'No. Your artwork is read, rendered, edited, and exported entirely in your browser. Background removal runs locally with a bundled U2Net model, and ZIP files are created on-device. Only the app’s own pages, fonts, and model files are fetched from the host.',
   },
   {
     q: 'What platforms are supported?',
-    a: 'Android (mipmap mdpi-xxxhdpi, adaptive icons, monochrome, Play Store), iOS (iPhone, iPad, App Store), Web (favicons, PWA), and Desktop (Windows, macOS, Linux).',
+    a: 'Android (ldpi–xxxhdpi launcher and round icons, adaptive foreground/background, monochrome, notification, Play Store), iOS (19 AppIcon sizes plus Contents.json), Web/PWA (favicons, apple-touch-icon, manifest, maskable icon, ICO, browserconfig), and Desktop (Windows tiles + ICO, macOS ICNS, Linux PNGs).',
   },
   {
     q: 'Can I customize the background?',
-    a: 'Yes. Solid colors, linear gradients, or transparent backgrounds are supported with a live preview.',
+    a: 'Yes. Choose a solid colour, one of nine linear-gradient presets, or a transparent background. Padding, fit mode, rotation, shape masks, adjustments, shadows, borders, and flips are also editable with live previews.',
   },
   {
     q: 'What export format is used?',
-    a: 'All icons are exported as PNG. The download is a structured ZIP archive with proper folder hierarchy for each platform.',
+    a: 'Icons are rendered as high-quality PNGs. Platform-specific files include multi-resolution ICO and ICNS, favicon.ico, SVG, site.webmanifest, browserconfig.xml, and iOS Contents.json. Everything is packaged into one structured ZIP archive.',
+  },
+  {
+    q: 'Can I remove an image background?',
+    a: 'Yes. The Remove Background tool offers local U2Net AI removal for photos and complex artwork, plus a chroma-key tool for flat-colour logos. Both run in your browser and preserve the rest of your edits.',
+  },
+  {
+    q: 'Does my work survive a page reload?',
+    a: 'Yes. Your current artwork and edits are saved locally in IndexedDB, so reloading /editor restores the exact session. Uploading a new image replaces the saved artwork; Reset clears it.',
+  },
+  {
+    q: 'Which browsers are supported?',
+    a: 'Current Chrome, Edge, Firefox, and Safari 15+ on desktop and mobile. The editor uses the Canvas API, WebAssembly for U2Net, and IndexedDB for local session storage. Internet Explorer is not supported.',
   },
   {
     q: 'Is it free to use?',
-    a: 'Yes, completely free. There are no limits, no accounts, and no hidden charges.',
+    a: 'Yes. CloudIcon Studio is free, requires no account, and has no export limits or watermarks. The only hard limit is the 25 MB upload cap per image.',
+  },
+  {
+    q: 'Do I need to install anything?',
+    a: 'No. The editor runs in a normal browser tab. There is no install popup; if you want an app-like window, you can use your browser’s “Install” or “Add to Home Screen” menu option manually.',
   },
 ];
 
@@ -403,7 +418,7 @@ function CTASection() {
             Generate your icon set in seconds
           </p>
           <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-6 sm:mb-8 leading-relaxed">
-            No sign-up required. No files uploaded. Just upload, adjust, and download
+            No sign-up required. No artwork uploaded. Just upload, adjust, and download
             a complete platform-ready icon pack.
           </p>
           <button
@@ -427,6 +442,7 @@ export default function Home() {
     <PageLayout>
       <HeroSection />
       <StatsSection />
+      <ShowcaseSection />
       <UseCasesSection />
       <WhyChooseSection />
       <ExportDetailsSection />

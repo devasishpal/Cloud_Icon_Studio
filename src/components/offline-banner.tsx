@@ -9,10 +9,11 @@ export function OfflineBanner() {
   useEffect(() => {
     const onOffline = () => setOffline(true);
     const onOnline = () => setOffline(false);
-    setOffline(!navigator.onLine);
+    const timer = window.setTimeout(() => setOffline(!navigator.onLine), 0);
     window.addEventListener('offline', onOffline);
     window.addEventListener('online', onOnline);
     return () => {
+      window.clearTimeout(timer);
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('online', onOnline);
     };
