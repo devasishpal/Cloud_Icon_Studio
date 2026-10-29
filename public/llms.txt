@@ -26,22 +26,37 @@ The site uses JSON-LD schema.org markup including: Organization, WebSite, WebApp
 
 ## Features
 
-- Multi-platform icon export (Android, iOS, Web, Desktop)
-- GPU-accelerated canvas with real-time rendering and device mockups
-- Shape, crop, rotate, background (solid/gradient), and padding tools
-- Undo/redo with keyboard shortcuts
+- Multi-platform icon export: Android, iOS, Web/PWA, Windows, macOS, and Linux
+- 95 assets in the Full Pack, organized into platform-ready folders
+- Local U2Net AI background removal via ONNX Runtime Web and WebAssembly
+- Chroma-key background removal with corner sampling and tolerance control
+- Shared Canvas 2D renderer for the editor, previews, and exports
+- Crop, rotate, pan, zoom, padding, fit modes, five shape masks, solid/gradient/transparent backgrounds, adjustments, shadows, borders, and flips
+- Undo/redo with an 80-step history and keyboard shortcuts
+- Reload-safe editor sessions stored in IndexedDB
+- Real-time Android, iOS, Web, and Desktop device mockups
+- Android adaptive icons, monochrome and notification icons, plus Play Store artwork
+- iOS AppIcon sets with Contents.json
+- Web favicons, PWA manifest icons, ICO, and browserconfig
+- Desktop export with Windows ICO, macOS ICNS, and Linux PNGs
+- ZIP export with per-platform folder hierarchy and an optional README
 - 100% client-side — your images never leave your device
-- PWA with offline support
-- Adaptive icon generation for Android
-- iOS App Store icon sets with Contents.json
-- Web favicon and PWA manifest icon export
-- Desktop icon export (Windows ICO, macOS ICNS, Linux PNG)
-- ZIP export with proper folder hierarchy per platform
+- Installable PWA with no automatic install prompt; static assets and the AI model are cached after first use
+- No accounts, analytics, or tracking cookies
 
 ## Technologies
 
-Built with Next.js, TypeScript, Tailwind CSS, Fabric.js, Framer Motion, deployed on Vercel.
+Built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, Fabric.js, Zustand + zundo, Framer Motion, onnxruntime-web, JSZip, and custom ICO/ICNS encoders. Deployed on Vercel.
+
+## Storage
+
+- Editor session: IndexedDB (`cloudicon-db` / `state` / `cloudicon-editor-state-v2`)
+- Export history: localStorage (last 50 exports)
+- Theme and cookie-consent preferences: localStorage
+
+No artwork is uploaded to a server.
 
 ## Support
 
 - Email: support@typely.in
+- Repository: https://github.com/devasishpal/Cloud_Icon_Studio
