@@ -7,8 +7,11 @@ import { loadImageElement } from '@/lib/render';
 import { MAX_FILE_SIZE, ZOOM_MAX, ZOOM_MIN } from '@/lib/constants';
 
 function isTypingTarget(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
+  // Keyboard events can be dispatched on window/document (for example the
+  // command-palette button does this), and those targets have no tagName or
+  // getAttribute. Only inspect real DOM elements.
+  if (!(target instanceof Element)) return false;
+  const el = target as HTMLElement;
   const tag = el.tagName;
   return (
     tag === 'INPUT' ||
